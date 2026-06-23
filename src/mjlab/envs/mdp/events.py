@@ -313,6 +313,47 @@ def reset_joints_by_offset(
   )
 
 
+def reset_joints_by_scale(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor | None,
+  position_range: tuple[float, float],
+  velocity_range: tuple[float, float],
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> None:
+  """Reset joints by scaling default positions (ultra_run_lab parity).
+
+  Each joint position is ``default_pos * scale`` where scale is sampled uniformly
+  from ``position_range``. Velocities are set to zero (velocity_range ignored for
+  parity with ultra_run_lab's ``reset_joints_by_scale`` which always zeros vel).
+  """
+  env_ids = resolve_env_ids(env, env_ids)
+
+  asset: Entity = env.scene[asset_cfg.name]
+  default_joint_pos = asset.data.default_joint_pos
+  assert default_joint_pos is not None
+  soft_joint_pos_limits = asset.data.soft_joint_pos_limits
+  assert soft_joint_pos_limits is not None
+
+  joint_pos = default_joint_pos[env_ids][:, asset_cfg.joint_ids].clone()
+  scale = sample_uniform(*position_range, joint_pos.shape, env.device)
+  joint_pos = joint_pos * scale
+  joint_pos_limits = soft_joint_pos_limits[env_ids][:, asset_cfg.joint_ids]
+  joint_pos = joint_pos.clamp_(joint_pos_limits[..., 0], joint_pos_limits[..., 1])
+
+  joint_vel = torch.zeros_like(joint_pos)
+
+  joint_ids = asset_cfg.joint_ids
+  if isinstance(joint_ids, list):
+    joint_ids = torch.tensor(joint_ids, device=env.device)
+
+  asset.write_joint_state_to_sim(
+    joint_pos.view(len(env_ids), -1),
+    joint_vel.view(len(env_ids), -1),
+    env_ids=env_ids,
+    joint_ids=joint_ids,
+  )
+
+
 def push_by_setting_velocity(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor | None,
