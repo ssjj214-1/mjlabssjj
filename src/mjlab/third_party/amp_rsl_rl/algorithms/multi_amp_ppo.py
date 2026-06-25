@@ -718,8 +718,18 @@ class MULTIAMPPPO:
 
       # Apply the gradients
       # -- For PPO
-      nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
-      self.optimizer.step()
+      grad_norm = nn.utils.clip_grad_norm_(
+        self.policy.parameters(), self.max_grad_norm
+      )
+      # A single non-finite gradient (NaN/Inf, e.g. from an extreme physics
+      # state on rough terrain) would otherwise permanently corrupt the policy
+      # parameters -- including the std parameter, which then makes
+      # ``Normal`` sampling raise "normal expects all elements of std >= 0.0".
+      # Skip the step instead of poisoning the network.
+      if torch.isfinite(grad_norm):
+        self.optimizer.step()
+      else:
+        self.optimizer.zero_grad(set_to_none=True)
       self._clamp_policy_std()
       # -- For RND
       if self.rnd_optimizer:
@@ -823,6 +833,10 @@ class MULTIAMPPPO:
           min_std = min_std.expand_as(std)
         elif min_std.shape != std.shape:
           min_std = min_std.reshape_as(std)
+        # ``clamp_`` leaves NaN untouched, so a non-finite std would survive and
+        # crash the next ``Normal`` sample. Replace non-finite entries with the
+        # floor before clamping.
+        torch.nan_to_num_(std, nan=0.0, posinf=0.0, neginf=0.0)
         std.clamp_(min=min_std)
       elif hasattr(self.policy, "log_std"):
         log_std = self.policy.log_std
@@ -831,6 +845,7 @@ class MULTIAMPPPO:
           min_std = min_std.expand_as(log_std)
         elif min_std.shape != log_std.shape:
           min_std = min_std.reshape_as(log_std)
+        torch.nan_to_num_(log_std, nan=0.0, posinf=0.0, neginf=0.0)
         log_std.clamp_(min=torch.log(min_std))
 
   def broadcast_parameters(self):

@@ -30,6 +30,7 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
+  GridPatternCfg,
   ObjRef,
   RingPatternCfg,
   TerrainHeightSensorCfg,
@@ -663,6 +664,42 @@ def ultra_game_yaw_aligned_env_cfg(
   )
 
   return cfg
+
+
+def add_terrain_relative_base_height(
+  cfg: ManagerBasedRlEnvCfg, target_height: float = 1.18
+) -> None:
+  """Make base-height terrain-relative for both reward and critic observation.
+
+  Adds a single down-ray ``TerrainHeightSensor`` on ``base_link`` and rewires:
+    * reward ``base_height_neg`` -> measures ``root_z - terrain_z`` under the base
+    * critic obs ``base_height_priv`` -> ``clip(root_z - terrain_z - target, -0.5, 0.5)``
+
+  Call this *after* the task installs a non-flat terrain (V11/V12/V13). On a flat
+  plane it is unnecessary (the sensor would just read a constant ground at z=0),
+  so flat tasks deliberately don't call it. Adds one term to the critic group, so
+  it changes the critic input width -- old checkpoints can't be resumed.
+  """
+  base_scan = TerrainHeightSensorCfg(
+    name="base_height_scan",
+    frame=(ObjRef(type="body", name="base_link", entity="robot"),),
+    pattern=GridPatternCfg(size=(0.0, 0.0), resolution=0.1),  # single down ray
+    ray_alignment="yaw",  # keep the ray vertical regardless of base pitch/roll
+    max_distance=5.0,
+    exclude_parent_body=True,
+    include_geom_groups=(0,),  # terrain only
+    reduction="mean",
+    debug_vis=False,
+  )
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (base_scan,)
+
+  if "base_height_neg" in cfg.rewards:
+    cfg.rewards["base_height_neg"].params["terrain_height_sensor"] = base_scan.name
+
+  cfg.observations["critic"].terms["base_height_priv"] = ObservationTermCfg(
+    func=ultra_mdp.base_height_priv,
+    params={"sensor_name": base_scan.name, "target_height": target_height},
+  )
 
 
 # ===========================================================================

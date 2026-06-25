@@ -56,7 +56,10 @@ from mjlab.terrains import TerrainEntityCfg
 from mjlab.terrains.config import GRAVEL_CURRICULUM_TERRAINS_CFG
 
 from .amp_him import RslRlAmpHimRunnerCfg
-from .env_cfgs import ultra_game_yaw_aligned_env_cfg
+from .env_cfgs import (
+  add_terrain_relative_base_height,
+  ultra_game_yaw_aligned_env_cfg,
+)
 
 # pseudo_inertia's alpha is log-density. Mass and inertia scale by exp(2*alpha),
 # so 0.8-1.2 physical mass scale maps to this alpha range.
@@ -141,6 +144,8 @@ def ultra_game_yaw_v11_env_cfg(play: bool = False):
     terrain_generator=GRAVEL_CURRICULUM_TERRAINS_CFG,
     max_init_terrain_level=0,
   )
+  # Terrain-relative base height for reward + critic obs (hist10 parity).
+  add_terrain_relative_base_height(cfg, target_height=1.18)
 
   # ── PD: replace robot with V9 retuned PD ───────────────────────────
   cfg.scene.entities["robot"] = _get_ultra_robot_cfg_v9()

@@ -1272,25 +1272,60 @@ def _yaw_cmd_max(env: "ManagerBasedRlEnv") -> float:
 # ---------------------------------------------------------------------------
 
 
+def _base_height_above_terrain(
+  env: "ManagerBasedRlEnv",
+  asset_cfg: SceneEntityCfg,
+  terrain_height_sensor: str | None,
+) -> torch.Tensor:
+  """Base height to use for the height reward / observation.
+
+  With ``terrain_height_sensor`` set, returns the base height *above the terrain
+  directly below it* (``root_z - terrain_z``) read from a single down-ray
+  ``TerrainHeightSensor`` on the base. Without it, falls back to the absolute
+  world-frame z (correct only on a flat plane).
+  """
+  if terrain_height_sensor is not None:
+    # TerrainHeightSensor.data.heights is [B, F] = frame_z - hit_z. The base
+    # sensor has a single frame (F=1), so column 0 is the base clearance.
+    return env.scene[terrain_height_sensor].data.heights[:, 0]
+  asset: Entity = env.scene[asset_cfg.name]
+  return asset.data.root_link_pos_w[:, 2]
+
+
 def base_height_neg(
   env: "ManagerBasedRlEnv",
   target_height: float = 1.20,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   style_mask: list[int] | None = None,
+  terrain_height_sensor: str | None = None,
 ) -> torch.Tensor:
   # Only penalize the base for being *below* the target, clamped to [-0.5, 0]
-  # and applied linearly (matching ultra_run_lab's `base_height_neg`). This is
-  # robust to non-flat terrain: when the robot climbs onto raised ground its
-  # world-frame z rises, the error goes positive and is clamped to 0, so
-  # terrain elevation is not penalized -- only crouching / collapse is. The
-  # previous two-sided, unbounded `.square()` form penalized every cm of
-  # terrain height deviation (up *and* down); summed over an episode it blew
-  # up to the order of -1e2..-1e4 once a non-flat terrain was introduced and
-  # dominated the entire reward.
-  asset: Entity = env.scene[asset_cfg.name]
-  h = asset.data.root_link_pos_w[:, 2]
+  # and applied linearly (matching ultra_run_lab's `base_height_neg`).
+  #
+  # With ``terrain_height_sensor`` set (V11/V12/V13 on terrain), the height is
+  # measured *relative to the terrain under the base*, so slopes / rough tiles
+  # don't bias it. Without the sensor (flat tasks) it uses absolute world z;
+  # that is already terrain-safe because the one-sided clamp ignores the base
+  # rising onto raised ground -- but on a slope it would still mis-penalize the
+  # downhill case, which is exactly what the sensor removes.
+  h = _base_height_above_terrain(env, asset_cfg, terrain_height_sensor)
   height_error = (h - target_height).clamp(min=-0.5, max=0.0)
   return height_error.abs() * _style_mask(env, style_mask)
+
+
+def base_height_priv(
+  env: "ManagerBasedRlEnv",
+  sensor_name: str,
+  target_height: float = 1.18,
+) -> torch.Tensor:
+  """Privileged critic observation: terrain-relative base height error.
+
+  Returns ``clip(root_z - terrain_z - target_height, -0.5, 0.5)`` from the base
+  down-ray ``TerrainHeightSensor``, matching ultra_run_lab's critic
+  ``base_height`` term. Shape ``[B, 1]``.
+  """
+  h = env.scene[sensor_name].data.heights[:, 0:1]
+  return torch.clip(h - target_height, -0.5, 0.5)
 
 
 def lin_vel_z_l2(

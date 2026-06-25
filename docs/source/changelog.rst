@@ -8,6 +8,13 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added terrain-relative base height to the Ultra GameYaw V11/V12/V13 terrain
+  tasks. A single down-ray ``TerrainHeightSensor`` on the base feeds both the
+  ``base_height_neg`` reward and a new ``base_height_priv`` privileged critic
+  observation, so base height is measured against the ground directly under the
+  robot (``root_z - terrain_z``) instead of absolute world z -- matching
+  ultra_run_lab hist10. Adds one critic observation term, so old V11/V12/V13
+  checkpoints can't be resumed.
 - Added ``BuiltinDcMotorActuator``, a native MuJoCo ``<dcmotor>`` wrapper.
   Supports voltage / position / velocity input modes with back-EMF,
   configurable motor constants, and optional integral, slew, inductance,
@@ -41,6 +48,12 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed the AMP+HIM trainer crashing with ``normal expects all elements of std
+  >= 0.0``. A non-finite gradient (e.g. from an extreme physics state on rough
+  terrain) corrupted the scalar policy ``std`` parameter, which the existing
+  ``min_normalized_std`` clamp could not repair (``clamp`` leaves NaN as NaN).
+  The optimizer step is now skipped when the gradient norm is non-finite, and
+  ``_clamp_policy_std`` sanitizes non-finite std entries before clamping.
 - Fixed all Ultra GameYaw AMP-HIM tasks leaving actor observation corruption
   enabled in play mode. ``ultra_game_yaw_aligned_env_cfg`` rebuilt the
   observation groups after the flat env's play override ran, discarding the
