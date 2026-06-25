@@ -702,6 +702,22 @@ def add_terrain_relative_base_height(
   )
 
 
+def apply_rough_terrain_sim_params(cfg: ManagerBasedRlEnvCfg) -> None:
+  """Raise MuJoCo contact/constraint solver capacity for rough terrain.
+
+  Rough heightfield tiles produce many more simultaneous contacts than the flat
+  plane. With the flat-tuned defaults (``njmax=300``, ``contact_sensor_maxmatch=
+  64``) the constraint/contact arrays can overflow on terrain, which yields a
+  bad (often non-finite) constraint solution -> NaN propagating into the policy.
+  Call this for the V11/V12/V13 terrain tasks; flat tasks keep the cheaper
+  defaults.
+  """
+  cfg.sim.mujoco.ccd_iterations = 128  # more convex-collision refinement
+  cfg.sim.contact_sensor_maxmatch = 512  # rough terrain has many contact points
+  cfg.sim.nconmax = None  # no cap -> avoid contact-pair overflow
+  cfg.sim.njmax = 1500  # larger Jacobian/constraint budget for stable solves
+
+
 # ===========================================================================
 # Ultra-aligned env + stand-to-run *launch* style — used by the parallel
 # AMP+HIM "accel" training task. Identical to the aligned env (same tightened

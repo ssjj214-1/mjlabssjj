@@ -11,7 +11,10 @@ from mjlab.terrains import TerrainEntityCfg
 from mjlab.terrains.config import GRAVEL_CURRICULUM_TERRAINS_CFG
 
 from .amp_him import RslRlAmpHimRunnerCfg
-from .env_cfgs import add_terrain_relative_base_height
+from .env_cfgs import (
+  add_terrain_relative_base_height,
+  apply_rough_terrain_sim_params,
+)
 from .env_cfgs_v9 import (
   ultra_game_yaw_amp_him_v9_runner_cfg,
   ultra_game_yaw_v9_env_cfg,
@@ -28,6 +31,8 @@ def ultra_game_yaw_v12_env_cfg(play: bool = False):
   )
   # Terrain-relative base height for reward + critic obs (hist10 parity).
   add_terrain_relative_base_height(cfg, target_height=1.18)
+  # Raise contact/constraint solver capacity for rough terrain.
+  apply_rough_terrain_sim_params(cfg)
   return cfg
 
 
