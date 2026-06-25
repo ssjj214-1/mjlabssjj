@@ -517,6 +517,13 @@ document.write(`
 <section id="added">
 <h3>Added<a class="headerlink" href="#added" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Added terrain-relative base height to the Ultra GameYaw V11/V12/V13 terrain
+tasks. A single down-ray <code class="docutils literal notranslate"><span class="pre">TerrainHeightSensor</span></code> on the base feeds both the
+<code class="docutils literal notranslate"><span class="pre">base_height_neg</span></code> reward and a new <code class="docutils literal notranslate"><span class="pre">base_height_priv</span></code> privileged critic
+observation, so base height is measured against the ground directly under the
+robot (<code class="docutils literal notranslate"><span class="pre">root_z</span> <span class="pre">-</span> <span class="pre">terrain_z</span></code>) instead of absolute world z – matching
+ultra_run_lab hist10. Adds one critic observation term, so old V11/V12/V13
+checkpoints can’t be resumed.</p></li>
 <li><p>Added <code class="docutils literal notranslate"><span class="pre">BuiltinDcMotorActuator</span></code>, a native MuJoCo <code class="docutils literal notranslate"><span class="pre">&lt;dcmotor&gt;</span></code> wrapper.
 Supports voltage / position / velocity input modes with back-EMF,
 configurable motor constants, and optional integral, slew, inductance,
@@ -552,6 +559,12 @@ border matches the ring height.</p></li>
 <section id="fixed">
 <h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Fixed the AMP+HIM trainer crashing with <code class="docutils literal notranslate"><span class="pre">normal</span> <span class="pre">expects</span> <span class="pre">all</span> <span class="pre">elements</span> <span class="pre">of</span> <span class="pre">std</span>
+<span class="pre">&gt;=</span> <span class="pre">0.0</span></code>. A non-finite gradient (e.g. from an extreme physics state on rough
+terrain) corrupted the scalar policy <code class="docutils literal notranslate"><span class="pre">std</span></code> parameter, which the existing
+<code class="docutils literal notranslate"><span class="pre">min_normalized_std</span></code> clamp could not repair (<code class="docutils literal notranslate"><span class="pre">clamp</span></code> leaves NaN as NaN).
+The optimizer step is now skipped when the gradient norm is non-finite, and
+<code class="docutils literal notranslate"><span class="pre">_clamp_policy_std</span></code> sanitizes non-finite std entries before clamping.</p></li>
 <li><p>Fixed all Ultra GameYaw AMP-HIM tasks leaving actor observation corruption
 enabled in play mode. <code class="docutils literal notranslate"><span class="pre">ultra_game_yaw_aligned_env_cfg</span></code> rebuilt the
 observation groups after the flat env’s play override ran, discarding the
