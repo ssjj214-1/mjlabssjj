@@ -8,6 +8,11 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Raised the MuJoCo contact/constraint solver capacity for the Ultra GameYaw
+  V11/V12/V13 terrain tasks (``ccd_iterations=128``, ``contact_sensor_maxmatch=
+  512``, ``njmax=1500``, ``nconmax`` uncapped). The flat-tuned defaults could
+  overflow on rough heightfield tiles and produce non-finite constraint
+  solutions. Flat tasks keep the cheaper defaults.
 - Added terrain-relative base height to the Ultra GameYaw V11/V12/V13 terrain
   tasks. A single down-ray ``TerrainHeightSensor`` on the base feeds both the
   ``base_height_neg`` reward and a new ``base_height_priv`` privileged critic

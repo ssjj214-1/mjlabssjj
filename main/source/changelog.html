@@ -517,6 +517,11 @@ document.write(`
 <section id="added">
 <h3>Added<a class="headerlink" href="#added" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Raised the MuJoCo contact/constraint solver capacity for the Ultra GameYaw
+V11/V12/V13 terrain tasks (<code class="docutils literal notranslate"><span class="pre">ccd_iterations=128</span></code>, <code class="docutils literal notranslate"><span class="pre">contact_sensor_maxmatch=</span>
+<span class="pre">512</span></code>, <code class="docutils literal notranslate"><span class="pre">njmax=1500</span></code>, <code class="docutils literal notranslate"><span class="pre">nconmax</span></code> uncapped). The flat-tuned defaults could
+overflow on rough heightfield tiles and produce non-finite constraint
+solutions. Flat tasks keep the cheaper defaults.</p></li>
 <li><p>Added terrain-relative base height to the Ultra GameYaw V11/V12/V13 terrain
 tasks. A single down-ray <code class="docutils literal notranslate"><span class="pre">TerrainHeightSensor</span></code> on the base feeds both the
 <code class="docutils literal notranslate"><span class="pre">base_height_neg</span></code> reward and a new <code class="docutils literal notranslate"><span class="pre">base_height_priv</span></code> privileged critic
