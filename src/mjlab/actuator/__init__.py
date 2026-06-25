@@ -58,5 +58,11 @@ from mjlab.actuator.learned_actuator import (
 )
 from mjlab.actuator.pd_actuator import IdealPdActuator as IdealPdActuator
 from mjlab.actuator.pd_actuator import IdealPdActuatorCfg as IdealPdActuatorCfg
+from mjlab.actuator.ultra_delayed_pd_actuator import (
+  UltraDelayedPdActuator as UltraDelayedPdActuator,
+)
+from mjlab.actuator.ultra_delayed_pd_actuator import (
+  UltraDelayedPdActuatorCfg as UltraDelayedPdActuatorCfg,
+)
 from mjlab.actuator.xml_actuator import XmlActuator as XmlActuator
 from mjlab.actuator.xml_actuator import XmlActuatorCfg as XmlActuatorCfg

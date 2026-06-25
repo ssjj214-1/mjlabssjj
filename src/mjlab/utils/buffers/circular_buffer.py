@@ -208,10 +208,12 @@ class CircularBuffer:
     self._buffer[self._pointer] = data
 
     # Backfill entire history with first frame for newly initialized batches.
+    # Build a mask with shape (1, batch_size, 1, 1, ...) so it broadcasts for
+    # arbitrary trailing data dimensions.
     is_first_push = self._num_pushes == 0
-    torch.where(
-      is_first_push[None, :, None], data[None, :, :], self._buffer, out=self._buffer
-    )
+    view_shape = (1, self._batch_size) + (1,) * (self._buffer.ndim - 2)
+    first_push_mask = is_first_push.view(view_shape)
+    torch.where(first_push_mask, data[None, ...], self._buffer, out=self._buffer)
 
     self._num_pushes += 1
 

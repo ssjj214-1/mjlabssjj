@@ -55,6 +55,14 @@ from .env_cfgs_v11 import (
   ultra_game_yaw_amp_him_v11_runner_cfg,
   ultra_game_yaw_v11_env_cfg,
 )
+from .env_cfgs_v12 import (
+  ultra_game_yaw_amp_him_v12_runner_cfg,
+  ultra_game_yaw_v12_env_cfg,
+)
+from .env_cfgs_v13 import (
+  ultra_game_yaw_amp_him_v13_runner_cfg,
+  ultra_game_yaw_v13_env_cfg,
+)
 from .rl_cfg import ultra_game_yaw_ppo_runner_cfg
 
 # Phase-1: plain PPO (kept for ablation).
@@ -223,5 +231,25 @@ register_mjlab_task(
   env_cfg=ultra_game_yaw_v11_env_cfg(),
   play_env_cfg=ultra_game_yaw_v11_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v11_runner_cfg(),
+  runner_cls=UltraGameYawAMPHIMRunner,
+)
+
+# v12: v9 (hist10 rewards + curriculum + HIM history=10) with the flat-plane
+# terrain replaced by GRAVEL_CURRICULUM_TERRAINS_CFG (matching ultra_run_lab
+# hist10's terrain: flat 30%, random_rough 40%, mild up/down slopes).
+register_mjlab_task(
+  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V12",
+  env_cfg=ultra_game_yaw_v12_env_cfg(),
+  play_env_cfg=ultra_game_yaw_v12_env_cfg(play=True),
+  rl_cfg=ultra_game_yaw_amp_him_v12_runner_cfg(),
+  runner_cls=UltraGameYawAMPHIMRunner,
+)
+
+# v13: v10 (15 DoF passive ankle-roll) with GRAVEL_CURRICULUM_TERRAINS_CFG.
+register_mjlab_task(
+  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V13",
+  env_cfg=ultra_game_yaw_v13_env_cfg(),
+  play_env_cfg=ultra_game_yaw_v13_env_cfg(play=True),
+  rl_cfg=ultra_game_yaw_amp_him_v13_runner_cfg(),
   runner_cls=UltraGameYawAMPHIMRunner,
 )

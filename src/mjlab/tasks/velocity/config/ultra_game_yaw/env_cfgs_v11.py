@@ -33,6 +33,7 @@ inherited unchanged from the base aligned env cfg.
 from __future__ import annotations
 
 import dataclasses
+import math
 
 from mjlab.asset_zoo.robots.ultra_game_yaw.ultra_constants import (
   ULTRA_ACT_ANKLE,
@@ -51,10 +52,15 @@ from mjlab.envs.mdp import dr as mdp_dr
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.tasks.velocity.mdp.velocity_command import UniformVelocityCommandCfg
-from mjlab.utils.spec_config import CollisionCfg
+from mjlab.terrains import TerrainEntityCfg
+from mjlab.terrains.config import GRAVEL_CURRICULUM_TERRAINS_CFG
 
 from .amp_him import RslRlAmpHimRunnerCfg
 from .env_cfgs import ultra_game_yaw_aligned_env_cfg
+
+# pseudo_inertia's alpha is log-density. Mass and inertia scale by exp(2*alpha),
+# so 0.8-1.2 physical mass scale maps to this alpha range.
+_INERTIA_ALPHA_RANGE = (0.5 * math.log(0.8), 0.5 * math.log(1.2))
 
 # ── V9 retuned PD table (same as env_cfgs_v6.py) ──────────────────────────
 JOINT_STIFFNESS: dict[str, float] = {
@@ -129,6 +135,13 @@ def ultra_game_yaw_v11_env_cfg(play: bool = False):
 
   cfg = ultra_game_yaw_aligned_env_cfg(play=play)
 
+  # ── Terrain: gravel curriculum (same as ultra_run_lab hist10) ──────
+  cfg.scene.terrain = TerrainEntityCfg(
+    terrain_type="generator",
+    terrain_generator=GRAVEL_CURRICULUM_TERRAINS_CFG,
+    max_init_terrain_level=0,
+  )
+
   # ── PD: replace robot with V9 retuned PD ───────────────────────────
   cfg.scene.entities["robot"] = _get_ultra_robot_cfg_v9()
 
@@ -196,14 +209,14 @@ def ultra_game_yaw_v11_env_cfg(play: bool = False):
     },
   )
 
-  # ── Inertia + body mass (others): pseudo-inertia 0.8–1.2× ───────────
+  # ── Inertia + body mass: pseudo-inertia 0.8-1.2x ────────────────────
   # Physics-consistent mass + inertia scaling for all bodies.
   cfg.events["randomize_body_inertia"] = EventTermCfg(
     func=mdp_dr.pseudo_inertia,
     mode="startup",
     params={
       "asset_cfg": SceneEntityCfg("robot", body_names=(".*",)),
-      "alpha_range": (0.8, 1.2),
+      "alpha_range": _INERTIA_ALPHA_RANGE,
       "distribution": "uniform",
     },
   )
@@ -220,6 +233,15 @@ def ultra_game_yaw_v11_env_cfg(play: bool = False):
       "distribution": "uniform",
     },
   )
+
+  # ── Reward rebalance: align with ultra_run_lab new_him weights ──────
+  # The aligned env's inflated ang_vel_z rewards suppress forward speed.
+  # Revert to new_him values so track_lin_vel_x isn't out-competed.
+  cfg.rewards["track_ang_vel_z"].weight = 3.0  # was 8.0
+  cfg.rewards["track_ang_vel_z_bonus"].weight = 1.0  # was 3.0
+  # Remove mjlab-only rewards not present in new_him.
+  cfg.rewards.pop("ang_vel_z_straight_neg", None)
+  cfg.rewards.pop("arm_dof_pos_neg", None)
 
   return cfg
 

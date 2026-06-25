@@ -188,6 +188,64 @@ def pd_gains(
       )
 
 
+def motor_strength(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor | None,
+  strength_range: tuple[float, float],
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  distribution: Literal["uniform", "log_uniform"] = "uniform",
+) -> None:
+  """Randomize per-joint motor strength (a multiplicative scale on output torque).
+
+  This models motor gain / torque-constant variation. It only applies to
+  actuators that expose ``set_motor_strength`` (e.g. ``UltraDelayedPdActuator``);
+  the scale multiplies the final actuator torque (after PD clip + friction).
+
+  Args:
+    env: The environment.
+    env_ids: Environment IDs to randomize. If None, randomizes all.
+    strength_range: (min, max) multiplicative scale (e.g. ``(0.7, 1.2)``).
+    asset_cfg: Asset configuration specifying which entity and actuators.
+    distribution: Distribution type ("uniform" or "log_uniform").
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+
+  if env_ids is None:
+    env_ids = torch.arange(env.num_envs, device=env.device, dtype=torch.int)
+  else:
+    env_ids = env_ids.to(env.device, dtype=torch.int)
+
+  if isinstance(asset_cfg.actuator_ids, list):
+    actuators = [asset.actuators[i] for i in asset_cfg.actuator_ids]
+  else:
+    actuators = asset.actuators[asset_cfg.actuator_ids]
+  if not isinstance(actuators, list):
+    actuators = [actuators]
+
+  dist = resolve_distribution(distribution)
+  applied = False
+  for actuator in actuators:
+    setter = getattr(actuator, "set_motor_strength", None)
+    if setter is None:
+      continue
+    n = len(actuator.target_names)
+    samples = dist.sample(
+      torch.tensor(strength_range[0], device=env.device),
+      torch.tensor(strength_range[1], device=env.device),
+      (len(env_ids), n),
+      env.device,
+    )
+    setter(env_ids, samples)
+    applied = True
+
+  if not applied:
+    raise TypeError(
+      "dr.motor_strength found no actuators exposing 'set_motor_strength' on "
+      f"entity {asset_cfg.name!r}. This DR only applies to actuators like "
+      "UltraDelayedPdActuator."
+    )
+
+
 @requires_model_fields("actuator_forcerange", "jnt_actfrcrange", "tendon_actfrcrange")
 def effort_limits(
   env: ManagerBasedRlEnv,

@@ -147,6 +147,7 @@ mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp", rev = "8
 src = ["src"]  # Helpful for recognizing first-party imports.
 indent-width = 2
 exclude = [
+  "src/mjlab/third_party",
   "src/mjlab/utils/lab_api",
   "typings",
 ]
@@ -159,7 +160,16 @@ ignore = ["B011"]
 pythonVersion = "3.10"
 venvPath = "."
 venv = ".venv"
-ignore = ["./typings", "./src/mjlab/utils/lab_api", "./docs"]
+ignore = [
+  "./play_isaac_ckpt_probe.py",
+  "./scripts/plot_ultra_v10_ankle_torques.py",
+  "./sim_torque_probe.py",
+  "./typings",
+  "./src/mjlab/tasks/velocity/config/ultra_game_yaw",
+  "./src/mjlab/third_party",
+  "./src/mjlab/utils/lab_api",
+  "./docs",
+]
 stubPath = "typings"
 
 [tool.ty.environment]
@@ -167,7 +177,12 @@ extra-paths = ["typings"]
 
 [tool.ty.src]
 include = ["src", "tests"]
-exclude = ["src/mjlab/utils/lab_api", "typings"]
+exclude = [
+  "src/mjlab/tasks/velocity/config/ultra_game_yaw",
+  "src/mjlab/third_party",
+  "src/mjlab/utils/lab_api",
+  "typings",
+]
 
 [tool.pytest.ini_options]
 markers = [

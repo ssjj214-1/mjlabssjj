@@ -171,6 +171,18 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
   if resume_path is not None:
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
     runner.load(str(resume_path))
+    # Align the env step counter with the resumed iteration. `common_step_counter`
+    # counts env steps (num_steps_per_env per learning iteration) and drives
+    # step-triggered curricula/events (e.g. the velocity ramp). A freshly created
+    # env starts it at 0, which would rewind the curriculum to its first stage on
+    # resume even though the policy is mid-training.
+    num_steps_per_env = int(getattr(runner, "num_steps_per_env", 0))
+    resumed_step = int(runner.current_learning_iteration * num_steps_per_env)
+    env.unwrapped.common_step_counter = resumed_step
+    print(
+      f"[INFO]: Aligned env step counter to {resumed_step} "
+      f"(iteration {runner.current_learning_iteration}) for curriculum resume."
+    )
 
   runner.learn(
     num_learning_iterations=cfg.agent.max_iterations, init_at_random_ep_len=True

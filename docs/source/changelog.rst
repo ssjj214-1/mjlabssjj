@@ -16,6 +16,9 @@ Added
   enabled, the noise amplitude scales with difficulty (flat at 0, full
   ``noise_range`` at 1) so the terrain progresses in a curriculum. Defaults to
   ``False``, preserving the previous difficulty-independent behavior.
+- Added the Ultra GameYaw AMP-HIM V9plus training task with delayed
+  fall-termination, recovery-motion resets, recovery AMP style data, and
+  recovery-stage reward switching for fall/get-up learning.
 
 Changed
 ^^^^^^^
@@ -38,6 +41,12 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed Ultra GameYaw V10 AMP foot endpoints selecting the passive ankle-roll
+  links instead of the ankle-pitch foot proxies used by the AMP motion files.
+- Fixed Ultra GameYaw V10 leaving the passive ankle-roll joints unlimited;
+  they now use +/-10 degree joint ranges.
+- Fixed Ultra GameYaw V10 replacing V9's retuned actuator damping with the
+  baseline robot actuator table when switching to the passive ankle-roll XML.
 - Fixed ``select_gpus`` crashing when ``CUDA_VISIBLE_DEVICES`` contains MIG UUIDs instead of numeric indices.
 - Fixed pyramid-stairs terrains (``BoxPyramidStairsTerrainCfg``,
   ``BoxInvertedPyramidStairsTerrainCfg``, and ``BoxOpenStairsTerrainCfg``)

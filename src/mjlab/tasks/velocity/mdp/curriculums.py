@@ -15,11 +15,15 @@ if TYPE_CHECKING:
 _DEFAULT_SCENE_CFG = SceneEntityCfg("robot")
 
 
-class VelocityStage(TypedDict):
+class VelocityStage(TypedDict, total=False):
   step: int
   lin_vel_x: tuple[float, float] | None
   lin_vel_y: tuple[float, float] | None
   ang_vel_z: tuple[float, float] | None
+  # Optional: change the fraction of stand-still (zero-command) envs at this
+  # stage. Lets a curriculum command more envs to stand still early on (when the
+  # policy must first learn to hold a pose) and fewer later.
+  rel_standing_envs: float
 
 
 def terrain_levels_vel(
@@ -91,13 +95,16 @@ def commands_vel(
   assert command_term is not None
   cfg = cast(UniformVelocityCommandCfg, command_term.cfg)
   for stage in velocity_stages:
-    if env.common_step_counter >= stage["step"]:
+    if env.common_step_counter >= stage.get("step", 0):
       if "lin_vel_x" in stage and stage["lin_vel_x"] is not None:
         cfg.ranges.lin_vel_x = stage["lin_vel_x"]
       if "lin_vel_y" in stage and stage["lin_vel_y"] is not None:
         cfg.ranges.lin_vel_y = stage["lin_vel_y"]
       if "ang_vel_z" in stage and stage["ang_vel_z"] is not None:
         cfg.ranges.ang_vel_z = stage["ang_vel_z"]
+      rel_standing = stage.get("rel_standing_envs")
+      if rel_standing is not None:
+        cfg.rel_standing_envs = rel_standing
   return {
     "lin_vel_x_min": torch.tensor(cfg.ranges.lin_vel_x[0]),
     "lin_vel_x_max": torch.tensor(cfg.ranges.lin_vel_x[1]),
@@ -105,4 +112,5 @@ def commands_vel(
     "lin_vel_y_max": torch.tensor(cfg.ranges.lin_vel_y[1]),
     "ang_vel_z_min": torch.tensor(cfg.ranges.ang_vel_z[0]),
     "ang_vel_z_max": torch.tensor(cfg.ranges.ang_vel_z[1]),
+    "rel_standing_envs": torch.tensor(cfg.rel_standing_envs),
   }

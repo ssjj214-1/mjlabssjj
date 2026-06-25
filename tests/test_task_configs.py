@@ -1,10 +1,55 @@
 """Generic tests for task config integrity."""
 
-import pytest
+import math
+from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
-from mjlab.envs import ManagerBasedRlEnvCfg
+import pytest
+import torch
+
+from mjlab.envs import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg
+from mjlab.sensor import ContactSensorCfg
 from mjlab.tasks.registry import list_tasks, load_env_cfg
+from mjlab.tasks.velocity.config.ultra_game_yaw.amp_him import (
+  _select_amp_foot_bodies,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v9 import (
+  ultra_game_yaw_v9_env_cfg,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v9plus import (
+  ultra_game_yaw_amp_him_v9plus_runner_cfg,
+  ultra_game_yaw_v9plus_env_cfg,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v10 import (
+  ultra_game_yaw_v10_env_cfg,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v11 import (
+  ultra_game_yaw_v11_env_cfg,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.recovery_mdp import (
+  DelayedTerminationManager,
+  RecoveryEpisodeOutcomeMetric,
+  RecoveryTransitionMetric,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.ultra_mdp import (
+  select_foot_body_names,
+)
+
+_ULTRA_V8_DAMPING_BY_GROUP = {
+  ("hip_yaw_l_joint", "hip_yaw_r_joint"): 20.0,
+  ("hip_roll_l_joint", "hip_roll_r_joint"): 40.0,
+  (
+    "hip_pitch_l_joint",
+    "hip_pitch_r_joint",
+    "knee_pitch_l_joint",
+    "knee_pitch_r_joint",
+  ): 40.0,
+  ("ankle_pitch_l_joint", "ankle_pitch_r_joint"): 10.0,
+  ("waist_yaw_joint",): 10.0,
+  ("shoulder_pitch_l_joint", "shoulder_pitch_r_joint"): 4.0,
+}
 
 
 @pytest.fixture(scope="module")
@@ -142,3 +187,188 @@ def test_play_mode_disables_push_robot(all_task_ids: list[str]) -> None:
     assert "push_robot" not in cfg.events, (
       f"Play mode task {task_id} has push_robot event, expected it to be removed"
     )
+
+
+@pytest.mark.parametrize(
+  "env_cfg_fn",
+  [
+    ultra_game_yaw_v9_env_cfg,
+    ultra_game_yaw_v9plus_env_cfg,
+    ultra_game_yaw_v10_env_cfg,
+  ],
+)
+def test_ultra_v9_v9plus_v10_use_v8_kd(env_cfg_fn) -> None:
+  """V9/V9plus/V10 should keep the V8 retuned actuator damping."""
+  cfg = env_cfg_fn()
+  robot_cfg = cfg.scene.entities["robot"]
+  assert robot_cfg.articulation is not None
+
+  actual = {
+    tuple(act.target_names_expr): act.damping
+    for act in robot_cfg.articulation.actuators
+  }
+
+  assert actual == _ULTRA_V8_DAMPING_BY_GROUP
+
+
+def test_ultra_v10_uses_ankle_roll_physical_feet_without_changing_v9() -> None:
+  """V10's physical foot is ankle_roll; V9 remains ankle_pitch."""
+  assert select_foot_body_names(
+    ("base_link", "ankle_pitch_l_link", "ankle_pitch_r_link")
+  ) == ("ankle_pitch_l_link", "ankle_pitch_r_link")
+  assert select_foot_body_names(
+    (
+      "base_link",
+      "ankle_pitch_l_link",
+      "ankle_pitch_r_link",
+      "ankle_roll_l_link",
+      "ankle_roll_r_link",
+    )
+  ) == ("ankle_roll_l_link", "ankle_roll_r_link")
+
+  cfg = ultra_game_yaw_v10_env_cfg()
+  feet_sensor = cast(
+    ContactSensorCfg,
+    next(
+      sensor
+      for sensor in cfg.scene.sensors or ()
+      if getattr(sensor, "name", None) == "feet_ground_contact"
+    ),
+  )
+  assert feet_sensor.primary.mode == "body"
+  assert feet_sensor.primary.pattern == r"^(ankle_roll_l_link|ankle_roll_r_link)$"
+
+
+def test_ultra_v11_pseudo_inertia_uses_log_alpha_for_mass_scale() -> None:
+  """V11 pseudo-inertia should encode 0.8-1.2 mass scale as log alpha."""
+  cfg = ultra_game_yaw_v11_env_cfg()
+  event = cfg.events["randomize_body_inertia"]
+
+  assert event.params["alpha_range"] == pytest.approx(
+    (0.5 * math.log(0.8), 0.5 * math.log(1.2))
+  )
+
+
+def test_ultra_amp_foot_proxy_stays_on_ankle_pitch() -> None:
+  """AMP foot endpoint should match the pitch-link motion-file proxy."""
+  assert _select_amp_foot_bodies(
+    (
+      "base_link",
+      "ankle_pitch_l_link",
+      "ankle_pitch_r_link",
+      "ankle_roll_l_link",
+      "ankle_roll_r_link",
+    )
+  ) == ("ankle_pitch_l_link", "ankle_pitch_r_link")
+
+
+def test_ultra_v9plus_adds_recovery_pipeline_without_changing_actor_obs() -> None:
+  """V9plus should add delayed recovery while preserving V9 actor obs terms."""
+
+  v9_cfg = ultra_game_yaw_v9_env_cfg()
+  v9plus_cfg = ultra_game_yaw_v9plus_env_cfg()
+  v9plus_play_cfg = ultra_game_yaw_v9plus_env_cfg(play=True)
+
+  assert (
+    v9plus_cfg.observations["actor"].terms.keys()
+    == v9_cfg.observations["actor"].terms.keys()
+  )
+
+  init_event = v9plus_cfg.events["init_recovery_motion_loader"]
+  reset_event = v9plus_cfg.events["reset_from_recovery_motion"]
+  assert init_event.mode == "startup"
+  assert reset_event.mode == "reset"
+  assert init_event.params["delay_reset_env_ratio"] == 0.4
+  assert init_event.params["max_delay_steps"] == 250
+  assert (
+    v9plus_play_cfg.events["init_recovery_motion_loader"].params[
+      "delay_reset_env_ratio"
+    ]
+    == 1.0
+  )
+
+  recovery_dir = Path(init_event.params["recovery_dir"])
+  assert reset_event.params["recovery_dir"] == str(recovery_dir)
+  assert {
+    "Take_040_Skeleton0_50fps.npz",
+    "fallAndGetUp1_subject1_best_getup_50fps.npz",
+  }.issubset({path.name for path in recovery_dir.iterdir()})
+
+  assert v9plus_cfg.events["ultra_style_update"].func.__name__ == (
+    "ultra_recovery_style_update"
+  )
+  assert "recovery_root_height" in v9plus_cfg.rewards
+  assert "recovery_body_orientation" in v9plus_cfg.rewards
+  assert v9plus_cfg.rewards["recovery_root_height"].params["std"] == pytest.approx(
+    0.3 * 1.80 / 1.33
+  )
+  assert {
+    "recovery_active_ratio",
+    "recovery_delay_progress",
+    "recovery_attempt_rate",
+    "recovery_success_rate",
+    "recovery_failure_rate",
+    "recovery_success_episode",
+    "recovery_failure_episode",
+  }.issubset(v9plus_cfg.metrics)
+  assert v9plus_cfg.metrics["recovery_success_episode"].reduce == "last"
+  assert v9plus_cfg.metrics["recovery_failure_episode"].reduce == "last"
+  for term_name in ("ang_vel_xy_l2", "body_contact_neg", "feet_stumble"):
+    assert v9plus_cfg.rewards[term_name].params["style_mask"] == [0, 1, 2]
+
+  runner_cfg = ultra_game_yaw_amp_him_v9plus_runner_cfg()
+  assert runner_cfg.num_styles == 4
+  assert set(runner_cfg.amp_motion_files_dict) == {
+    "style_0",
+    "style_1",
+    "style_2",
+    "style_3",
+  }
+  style_3_files = [Path(path) for path in runner_cfg.amp_motion_files_dict["style_3"]]
+  assert all(path.exists() for path in style_3_files)
+  assert runner_cfg.amp_reward_coef_dict["style_3"] == 1.0
+
+
+def test_ultra_v9plus_recovery_metrics_detect_outcomes() -> None:
+  """Recovery metrics should distinguish attempts, successes, and failures."""
+
+  manager = DelayedTerminationManager.__new__(DelayedTerminationManager)
+  manager._delay_env_mask = torch.tensor([True, True])
+  manager._delay_counters = torch.tensor([0, 0])
+  manager._max_delay_steps = 250
+  env = SimpleNamespace(
+    num_envs=2,
+    device="cpu",
+    termination_manager=manager,
+    reset_buf=torch.tensor([False, False]),
+    reset_terminated=torch.tensor([False, False]),
+  )
+  typed_env = cast(ManagerBasedRlEnv, env)
+
+  attempt = RecoveryTransitionMetric(cfg=None, env=typed_env)
+  manager._delay_counters = torch.tensor([3, 0])
+  assert attempt(typed_env, mode="attempt").tolist() == [1.0, 0.0]
+
+  success = RecoveryTransitionMetric(cfg=None, env=typed_env)
+  assert success(typed_env, mode="success").tolist() == [0.0, 0.0]
+  manager._delay_counters = torch.tensor([0, 0])
+  assert success(typed_env, mode="success").tolist() == [1.0, 0.0]
+
+  failure = RecoveryTransitionMetric(cfg=None, env=typed_env)
+  manager._delay_counters = torch.tensor([5, 0])
+  assert failure(typed_env, mode="failure").tolist() == [0.0, 0.0]
+  manager._delay_counters = torch.tensor([0, 0])
+  env.reset_buf = torch.tensor([True, False])
+  env.reset_terminated = torch.tensor([True, False])
+  assert failure(typed_env, mode="failure").tolist() == [1.0, 0.0]
+
+  outcome = RecoveryEpisodeOutcomeMetric(cfg=None, env=typed_env)
+  env.reset_buf = torch.tensor([False, False])
+  env.reset_terminated = torch.tensor([False, False])
+  manager._delay_counters = torch.tensor([2, 0])
+  assert outcome(typed_env, mode="success").tolist() == [0.0, 0.0]
+  manager._delay_counters = torch.tensor([0, 0])
+  assert outcome(typed_env, mode="success").tolist() == [1.0, 0.0]
+  assert outcome(typed_env, mode="success").tolist() == [1.0, 0.0]
+  outcome.reset(env_ids=torch.tensor([0]))
+  assert outcome(typed_env, mode="success").tolist() == [0.0, 0.0]

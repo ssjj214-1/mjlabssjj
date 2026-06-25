@@ -80,4 +80,5 @@ from .pair import pair_friction as pair_friction
 # Actuator.
 # isort: split
 from .actuator import effort_limits as effort_limits
+from .actuator import motor_strength as motor_strength
 from .actuator import pd_gains as pd_gains

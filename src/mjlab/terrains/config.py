@@ -277,6 +277,28 @@ def tilted_grid(
   return terrain_gen.BoxTiltedGridTerrainCfg(**defaults)
 
 
+# Mild gravel terrain (ultra_run_lab new_him / hist10 parity).
+# Same sub-terrain composition as ultra_run_lab GRAVEL_CURRICULUM_TERRAINS_CFG.
+GRAVEL_CURRICULUM_TERRAINS_CFG = TerrainGeneratorCfg(
+  curriculum=True,
+  size=(8.0, 8.0),
+  border_width=20.0,
+  num_rows=10,
+  num_cols=20,
+  sub_terrains={
+    "flat": flat(proportion=0.30),
+    "random_rough": random_rough(
+      proportion=0.40, noise_range=(-0.02, 0.04), noise_step=0.01
+    ),
+    "slope": hf_pyramid_slope(
+      proportion=0.15, slope_range=(0.0, 0.10), platform_width=2.0
+    ),
+    "pyramid_slope_inv": hf_pyramid_slope_inv(
+      proportion=0.15, slope_range=(0.0, 0.10), platform_width=2.0
+    ),
+  },
+)
+
 # Named terrain sets.
 
 ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
