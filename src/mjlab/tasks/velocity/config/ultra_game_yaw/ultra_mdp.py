@@ -1278,9 +1278,19 @@ def base_height_neg(
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   style_mask: list[int] | None = None,
 ) -> torch.Tensor:
+  # Only penalize the base for being *below* the target, clamped to [-0.5, 0]
+  # and applied linearly (matching ultra_run_lab's `base_height_neg`). This is
+  # robust to non-flat terrain: when the robot climbs onto raised ground its
+  # world-frame z rises, the error goes positive and is clamped to 0, so
+  # terrain elevation is not penalized -- only crouching / collapse is. The
+  # previous two-sided, unbounded `.square()` form penalized every cm of
+  # terrain height deviation (up *and* down); summed over an episode it blew
+  # up to the order of -1e2..-1e4 once a non-flat terrain was introduced and
+  # dominated the entire reward.
   asset: Entity = env.scene[asset_cfg.name]
   h = asset.data.root_link_pos_w[:, 2]
-  return (h - target_height).square() * _style_mask(env, style_mask)
+  height_error = (h - target_height).clamp(min=-0.5, max=0.0)
+  return height_error.abs() * _style_mask(env, style_mask)
 
 
 def lin_vel_z_l2(

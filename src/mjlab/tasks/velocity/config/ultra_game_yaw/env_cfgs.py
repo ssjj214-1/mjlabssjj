@@ -644,8 +644,12 @@ def ultra_game_yaw_aligned_env_cfg(
   """
   cfg = ultra_game_yaw_flat_env_cfg(play=play, enable_motor_dr=enable_motor_dr)
 
-  # Replace Observation manager with Ultra-aligned groups.
+  # Replace Observation manager with Ultra-aligned groups. This discards the
+  # actor group the flat env built (and play-adjusted), so re-apply the play
+  # override here: no actor observation corruption during evaluation/play.
   cfg.observations = _make_ultra_aligned_observations()
+  if play:
+    cfg.observations["actor"].enable_corruption = False
 
   # Replace reward set with full Ultra port.
   cfg.rewards = _make_ultra_aligned_rewards()

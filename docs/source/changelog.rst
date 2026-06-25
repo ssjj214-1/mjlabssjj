@@ -41,6 +41,16 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed all Ultra GameYaw AMP-HIM tasks leaving actor observation corruption
+  enabled in play mode. ``ultra_game_yaw_aligned_env_cfg`` rebuilt the
+  observation groups after the flat env's play override ran, discarding the
+  disable; the override is now re-applied after the rebuild.
+- Fixed the Ultra GameYaw ``base_height_neg`` reward using a two-sided,
+  unbounded squared world-frame height error. It now only penalizes the base
+  being below target, clamped to ``[-0.5, 0]`` and applied linearly (matching
+  ``ultra_run_lab``), so terrain elevation is no longer penalized. The previous
+  form blew the reward up to the order of ``-1e2..-1e4`` and collapsed training
+  once a non-flat terrain (e.g. the V11 gravel curriculum) was introduced.
 - Fixed Ultra GameYaw V10 AMP foot endpoints selecting the passive ankle-roll
   links instead of the ankle-pitch foot proxies used by the AMP motion files.
 - Fixed Ultra GameYaw V10 leaving the passive ankle-roll joints unlimited;
