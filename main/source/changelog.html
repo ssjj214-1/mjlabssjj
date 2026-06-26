@@ -58,7 +58,7 @@
     <link rel="prev" title="Research" href="research.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 25, 2026"/>
+    <meta name="docbuild:last-update" content="Jun 26, 2026"/>
   </head>
   
   
@@ -517,6 +517,13 @@ document.write(`
 <section id="added">
 <h3>Added<a class="headerlink" href="#added" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Replaced the Ultra GameYaw V13 (V10 XML) single foot-mesh collision with
+analytic primitives: three heel capsules, a bare arch, and 15 forefoot
+spheres per foot, all aligned to the <code class="docutils literal notranslate"><span class="pre">ankle_roll</span></code> foot mesh boundary
+(side/front within 0.4 mm, sole height within 0.05 mm via ray-cast). Like
+the V11/V12 capsule sole, this avoids mesh-vs-heightfield CCD/EPA divergence
+on rough terrain. Contact sensing already watches the <code class="docutils literal notranslate"><span class="pre">ankle_roll</span></code> bodies,
+so rewards and critic terms stay consistent.</p></li>
 <li><p>Raised the MuJoCo contact/constraint solver capacity for the Ultra GameYaw
 V11/V12/V13 terrain tasks (<code class="docutils literal notranslate"><span class="pre">ccd_iterations=128</span></code>, <code class="docutils literal notranslate"><span class="pre">contact_sensor_maxmatch=</span>
 <span class="pre">512</span></code>, <code class="docutils literal notranslate"><span class="pre">njmax=1500</span></code>, <code class="docutils literal notranslate"><span class="pre">nconmax</span></code> uncapped). The flat-tuned defaults could
@@ -545,6 +552,12 @@ recovery-stage reward switching for fall/get-up learning.</p></li>
 <section id="changed">
 <h3>Changed<a class="headerlink" href="#changed" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Renamed the Ultra GameYaw V11/V12/V13 task ids from
+<code class="docutils literal notranslate"><span class="pre">Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V11/V12/V13</span></code> to
+<code class="docutils literal notranslate"><span class="pre">Mjlab-Velocity-Rough-...</span></code> to match the registry convention (<code class="docutils literal notranslate"><span class="pre">Flat</span></code> ids use
+a plane, <code class="docutils literal notranslate"><span class="pre">Rough</span></code> ids use a terrain generator). These tasks have always used
+the gravel curriculum terrain; the <code class="docutils literal notranslate"><span class="pre">Flat</span></code> prefix was a misnomer. Update any
+<code class="docutils literal notranslate"><span class="pre">--task</span></code> arguments accordingly.</p></li>
 <li><p>Bumped <code class="docutils literal notranslate"><span class="pre">rsl-rl-lib</span></code> from 5.2.0 to 5.4.0.</p></li>
 <li><p>Curriculum-mode terrain difficulty is now deterministic across rows
 and reaches the configured <code class="docutils literal notranslate"><span class="pre">difficulty_range</span></code> endpoints
@@ -564,6 +577,17 @@ border matches the ring height.</p></li>
 <section id="fixed">
 <h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Fixed the Ultra GameYaw foot collision diverging on rough terrain. The MJCF
+migration replaced the source robot’s multi-capsule sole with a single
+<code class="docutils literal notranslate"><span class="pre">type=&quot;mesh&quot;</span></code> foot geom, so foot-vs-heightfield contact ran through CCD/EPA
+and failed to converge (<code class="docutils literal notranslate"><span class="pre">EPA</span> <span class="pre">horizon</span> <span class="pre">...</span> <span class="pre">isn't</span> <span class="pre">large</span> <span class="pre">enough</span></code>), producing
+non-finite contact forces and NaN in reward/loss on the V11/V12/V13 terrain
+tasks. The sole is now the original set of thin capsules
+(<code class="docutils literal notranslate"><span class="pre">left/right_footN_collision</span></code>, N=2..12); all robot collision geoms are
+primitives again, so contact is analytic and stable. Friction
+domain-randomization matches the sole capsules by regex (one shared value per
+foot) and the privileged friction observation reads one representative capsule
+per foot.</p></li>
 <li><p>Fixed the AMP+HIM trainer crashing with <code class="docutils literal notranslate"><span class="pre">normal</span> <span class="pre">expects</span> <span class="pre">all</span> <span class="pre">elements</span> <span class="pre">of</span> <span class="pre">std</span>
 <span class="pre">&gt;=</span> <span class="pre">0.0</span></code>. A non-finite gradient (e.g. from an extreme physics state on rough
 terrain) corrupted the scalar policy <code class="docutils literal notranslate"><span class="pre">std</span></code> parameter, which the existing
@@ -1420,7 +1444,7 @@ By The mjlab Developers
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Jun 25, 2026.
+  Last updated on Jun 26, 2026.
   <br/>
 </p>
   </div>
