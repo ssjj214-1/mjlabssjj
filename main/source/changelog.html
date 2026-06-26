@@ -517,6 +517,19 @@ document.write(`
 <section id="added">
 <h3>Added<a class="headerlink" href="#added" title="Link to this heading">#</a></h3>
 <ul class="simple">
+<li><p>Restored the distance-based terrain difficulty curriculum on the Ultra GameYaw
+V9plus/V11/V12/V13 terrain tasks (<code class="docutils literal notranslate"><span class="pre">mdp.terrain_levels_vel</span></code> via
+<code class="docutils literal notranslate"><span class="pre">add_hist10_terrain_curriculum</span></code>). The Ultra base cfg pops <code class="docutils literal notranslate"><span class="pre">terrain_levels</span></code>
+for the flat tasks, so the rough-terrain variants were pinned to the easiest
+terrain row (<code class="docutils literal notranslate"><span class="pre">max_init_terrain_level=0</span></code>) and never progressed. The
+move-up/move-down logic matches ultra_run_lab hist10’s <code class="docutils literal notranslate"><span class="pre">update_terrain_levels</span></code>.</p></li>
+<li><p>Added gravel curriculum terrain to the Ultra GameYaw V9plus recovery task
+(now <code class="docutils literal notranslate"><span class="pre">Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V9plus</span></code>), matching V12.
+The fall/get-up motion reset now places the root at <code class="docutils literal notranslate"><span class="pre">terrain_z</span> <span class="pre">+</span> <span class="pre">motion_z</span></code>
+instead of the absolute mocap height (which floated above / sank into raised
+terrain), and the recovery root-height reward is measured against the ground
+under the robot via the base down-ray height sensor. Adds the terrain-relative
+base-height critic term, so old V9plus checkpoints can’t be resumed.</p></li>
 <li><p>Replaced the Ultra GameYaw V13 (V10 XML) single foot-mesh collision with
 analytic primitives: three heel capsules, a bare arch, and 15 forefoot
 spheres per foot, all aligned to the <code class="docutils literal notranslate"><span class="pre">ankle_roll</span></code> foot mesh boundary

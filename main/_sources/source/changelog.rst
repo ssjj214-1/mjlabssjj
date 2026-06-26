@@ -8,6 +8,19 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Restored the distance-based terrain difficulty curriculum on the Ultra GameYaw
+  V9plus/V11/V12/V13 terrain tasks (``mdp.terrain_levels_vel`` via
+  ``add_hist10_terrain_curriculum``). The Ultra base cfg pops ``terrain_levels``
+  for the flat tasks, so the rough-terrain variants were pinned to the easiest
+  terrain row (``max_init_terrain_level=0``) and never progressed. The
+  move-up/move-down logic matches ultra_run_lab hist10's ``update_terrain_levels``.
+- Added gravel curriculum terrain to the Ultra GameYaw V9plus recovery task
+  (now ``Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V9plus``), matching V12.
+  The fall/get-up motion reset now places the root at ``terrain_z + motion_z``
+  instead of the absolute mocap height (which floated above / sank into raised
+  terrain), and the recovery root-height reward is measured against the ground
+  under the robot via the base down-ray height sensor. Adds the terrain-relative
+  base-height critic term, so old V9plus checkpoints can't be resumed.
 - Replaced the Ultra GameYaw V13 (V10 XML) single foot-mesh collision with
   analytic primitives: three heel capsules, a bare arch, and 15 forefoot
   spheres per foot, all aligned to the ``ankle_roll`` foot mesh boundary
