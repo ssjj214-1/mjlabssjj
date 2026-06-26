@@ -201,7 +201,12 @@ class RecoveryMotionResetManager:
     root_pos = frames["root_pos"][frame_ids]
     root_quat = frames["root_quat"][frame_ids]
     positions = env.scene.env_origins[env_ids].clone()
-    positions[:, 2] = root_pos[:, 2]
+    # The motion frame z is measured from the ground (z=0 in the mocap). On
+    # terrain, env_origins[:, 2] carries the spawn tile's surface height, so the
+    # frame z must be added on top of it -- not overwrite it -- or the robot is
+    # placed at absolute mocap height and floats above / sinks into the terrain.
+    # On a flat plane env_origins[:, 2] == 0, so this reduces to the frame z.
+    positions[:, 2] = positions[:, 2] + root_pos[:, 2]
 
     asset.write_root_link_pose_to_sim(
       torch.cat([positions, root_quat], dim=-1), env_ids=env_ids
@@ -367,14 +372,23 @@ def recovery_root_height_exp(
   std: float = 0.3,
   delay_env_rew_ratio: float = 3.5,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  terrain_height_sensor: str | None = None,
 ) -> torch.Tensor:
-  """Reward active recovery envs for returning the root to default height."""
+  """Reward active recovery envs for returning the root to default height.
+
+  With ``terrain_height_sensor`` set (a base down-ray ``TerrainHeightSensor``),
+  the height is measured against the ground directly under the robot
+  (``root_z - terrain_z``) so the target is correct on terrain. Without it the
+  absolute world ``root_z`` is used, which is only valid on a flat plane.
+  """
 
   asset: Entity = env.scene[asset_cfg.name]
   active_delay = _get_active_delay_mask(env)
-  height_error = torch.square(
-    asset.data.default_root_state[:, 2] - asset.data.root_link_pos_w[:, 2]
-  )
+  if terrain_height_sensor is not None:
+    cur_height = env.scene[terrain_height_sensor].data.heights[:, 0]
+  else:
+    cur_height = asset.data.root_link_pos_w[:, 2]
+  height_error = torch.square(asset.data.default_root_state[:, 2] - cur_height)
   reward = torch.exp(-height_error / (std * std)) * float(delay_env_rew_ratio)
   return torch.where(active_delay, reward, torch.zeros_like(reward))
 

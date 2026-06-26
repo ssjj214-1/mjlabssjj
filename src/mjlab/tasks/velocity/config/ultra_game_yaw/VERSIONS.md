@@ -187,16 +187,20 @@ XML / 资产：
 
 ## V9plus
 
-任务名：`Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V9plus`
+任务名：`Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V9plus`
 
 相对 AMP-HIM baseline：
 
 - 网络 / 算法：继承 V9，但 AMP style 从 3 个扩到 4 个，新增 recovery style。
 - 结构：一部分 env 延迟 fall termination，并从 fall/get-up motion frames reset。
+- 地形：与 V12 一致，换成 GRAVEL_CURRICULUM_TERRAINS_CFG，并启用 terrain-relative
+  base height + rough-terrain solver 容量。recovery reset 的 root z 改为
+  `terrain_z + motion_z`（地形上不再穿模/悬空），recovery root-height 奖励改为
+  地形相对（复用 base 下射 height sensor）。
 - 奖励 / metrics：新增 recovery root height、body orientation 奖励和 recovery
   active/progress/attempt/success/failure metrics；恢复期间放宽部分 locomotion penalty mask。
-- XML / 资产：机器人 XML 不变；新增 recovery motion 数据和 recovery AMP motion。
-- 目的：让同一个 stand/walk/run policy 同时见到摔倒恢复状态。
+- XML / 资产：机器人 XML 继承 base（含胶囊脚)；新增 recovery motion 数据和 recovery AMP motion。
+- 目的：让同一个 stand/walk/run policy 在地形上同时见到摔倒恢复状态。
 
 ## V10
 

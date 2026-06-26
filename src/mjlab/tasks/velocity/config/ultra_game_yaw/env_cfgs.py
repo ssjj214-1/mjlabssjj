@@ -727,6 +727,24 @@ def apply_rough_terrain_sim_params(cfg: ManagerBasedRlEnvCfg) -> None:
   cfg.sim.njmax = 1500  # larger Jacobian/constraint budget for stable solves
 
 
+def add_hist10_terrain_curriculum(cfg: ManagerBasedRlEnvCfg) -> None:
+  """Re-enable the distance-based terrain difficulty curriculum (hist10 parity).
+
+  The Ultra base cfg pops ``terrain_levels`` because the flat tasks have no
+  terrain rows. The V9plus/V11/V12/V13 rough-terrain tasks DO use the gravel
+  curriculum grid (``num_rows`` difficulty levels), so restore the term: a robot
+  that walks past half a tile is promoted to a harder row, one that covers less
+  than half its commanded distance is demoted. This is ``mdp.terrain_levels_vel``,
+  whose move-up/move-down logic matches ultra_run_lab hist10's
+  ``update_terrain_levels`` line-for-line. Without it the robots stay pinned to
+  the easiest row (``max_init_terrain_level=0``) and never see harder terrain.
+  """
+  cfg.curriculum["terrain_levels"] = CurriculumTermCfg(
+    func=mdp.terrain_levels_vel,
+    params={"command_name": "twist"},
+  )
+
+
 # ===========================================================================
 # Ultra-aligned env + stand-to-run *launch* style — used by the parallel
 # AMP+HIM "accel" training task. Identical to the aligned env (same tightened

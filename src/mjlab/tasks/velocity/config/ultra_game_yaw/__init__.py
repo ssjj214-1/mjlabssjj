@@ -197,11 +197,11 @@ register_mjlab_task(
   runner_cls=UltraGameYawAMPHIMRunner,
 )
 
-# v9plus: v9 with AMP_mjlab-style fall/get-up recovery. A subset of envs delay
-# fall termination for a short window and reset from recovery motion frames, so
-# the same stand/walk/run policy also learns to recover after a fall.
+# v9plus: v9 + gravel terrain + AMP_mjlab-style fall/get-up recovery. A subset of
+# envs delay fall termination for a short window and reset from recovery motion
+# frames, so the same stand/walk/run policy also learns to recover after a fall.
 register_mjlab_task(
-  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V9plus",
+  task_id="Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V9plus",
   env_cfg=ultra_game_yaw_v9plus_env_cfg(),
   play_env_cfg=ultra_game_yaw_v9plus_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v9plus_runner_cfg(),

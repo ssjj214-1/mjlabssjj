@@ -14,13 +14,22 @@ from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.metrics_manager import MetricsTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.terrains import TerrainEntityCfg
+from mjlab.terrains.config import GRAVEL_CURRICULUM_TERRAINS_CFG
 
 from . import recovery_mdp
 from .amp_him import RslRlAmpHimRunnerCfg
+from .env_cfgs import (
+  add_hist10_terrain_curriculum,
+  add_terrain_relative_base_height,
+  apply_rough_terrain_sim_params,
+)
 from .env_cfgs_v9 import (
   ultra_game_yaw_amp_him_v9_runner_cfg,
   ultra_game_yaw_v9_env_cfg,
 )
+
+_BASE_HEIGHT_SENSOR = "base_height_scan"
 
 _RECOVERY_MOTION_DIR: Path = (
   MJLAB_SRC_PATH / "asset_zoo" / "robots" / "ultra_game_yaw" / "recovery_motions"
@@ -43,9 +52,23 @@ _ULTRA_RECOVERY_HEIGHT_STD = (
 
 
 def ultra_game_yaw_v9plus_env_cfg(play: bool = False):
-  """V9 env with delayed fall termination and recovery-motion reset."""
+  """V9 env with gravel terrain + delayed fall termination + recovery reset."""
 
   cfg = ultra_game_yaw_v9_env_cfg(play=play)
+
+  # ── Gravel curriculum terrain (same as V12) ────────────────────────
+  cfg.scene.terrain = TerrainEntityCfg(
+    terrain_type="generator",
+    terrain_generator=GRAVEL_CURRICULUM_TERRAINS_CFG,
+    max_init_terrain_level=0,
+  )
+  # Terrain-relative base height for the locomotion reward + critic obs, and a
+  # base down-ray height sensor the recovery height reward reuses below.
+  add_terrain_relative_base_height(cfg, target_height=1.18)
+  # Rough terrain produces many more contacts than the flat plane.
+  apply_rough_terrain_sim_params(cfg)
+  # Distance-gated terrain difficulty curriculum (hist10 parity).
+  add_hist10_terrain_curriculum(cfg)
   delay_ratio = 1.0 if play else _DELAY_RESET_ENV_RATIO
   recovery_dir = str(_RECOVERY_MOTION_DIR)
 
@@ -75,7 +98,12 @@ def ultra_game_yaw_v9plus_env_cfg(play: bool = False):
   cfg.rewards["recovery_root_height"] = RewardTermCfg(
     func=recovery_mdp.recovery_root_height_exp,
     weight=1.0,
-    params={"std": _ULTRA_RECOVERY_HEIGHT_STD, "delay_env_rew_ratio": 3.5},
+    params={
+      "std": _ULTRA_RECOVERY_HEIGHT_STD,
+      "delay_env_rew_ratio": 3.5,
+      # Measure height above the terrain under the robot (not absolute world z).
+      "terrain_height_sensor": _BASE_HEIGHT_SENSOR,
+    },
   )
   cfg.rewards["recovery_body_orientation"] = RewardTermCfg(
     func=recovery_mdp.recovery_body_orientation_exp,
