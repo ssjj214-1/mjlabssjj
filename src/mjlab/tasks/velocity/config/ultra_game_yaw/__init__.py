@@ -227,7 +227,7 @@ register_mjlab_task(
 # reset base velocity, and brings command sampling + init state + push frequency
 # + action delay in line with the original Isaac-Lab new_him config.
 register_mjlab_task(
-  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V11",
+  task_id="Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V11",
   env_cfg=ultra_game_yaw_v11_env_cfg(),
   play_env_cfg=ultra_game_yaw_v11_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v11_runner_cfg(),
@@ -238,7 +238,7 @@ register_mjlab_task(
 # terrain replaced by GRAVEL_CURRICULUM_TERRAINS_CFG (matching ultra_run_lab
 # hist10's terrain: flat 30%, random_rough 40%, mild up/down slopes).
 register_mjlab_task(
-  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V12",
+  task_id="Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V12",
   env_cfg=ultra_game_yaw_v12_env_cfg(),
   play_env_cfg=ultra_game_yaw_v12_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v12_runner_cfg(),
@@ -247,7 +247,7 @@ register_mjlab_task(
 
 # v13: v10 (15 DoF passive ankle-roll) with GRAVEL_CURRICULUM_TERRAINS_CFG.
 register_mjlab_task(
-  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V13",
+  task_id="Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V13",
   env_cfg=ultra_game_yaw_v13_env_cfg(),
   play_env_cfg=ultra_game_yaw_v13_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v13_runner_cfg(),

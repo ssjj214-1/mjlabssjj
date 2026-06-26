@@ -9,7 +9,13 @@
       <default class="collision">
         <geom group="3" rgba=".2 .6 .2 .3" type="cylinder" contype="1" conaffinity="1" condim="1"/>
         <default class="foot">
-          <geom type="mesh" condim="3" friction="0.6 0.5 0.005" priority="1"/>
+          <!-- Sole approximated by thin capsules (matches the ultra_run_lab
+               source mjcf). Capsule-vs-heightfield is an analytic, stable
+               collision; the previous single ``type="mesh"`` foot forced
+               mesh-vs-hfield through CCD/EPA, which fails to converge on rough
+               terrain ("EPA horizon isn't large enough") and produces garbage
+               contact forces -> NaN. -->
+          <geom type="capsule" size="0.01" condim="3" friction="0.6 0.5 0.005" priority="1"/>
         </default>
       </default>
       <site group="5" rgba="1 0 0 1"/>
@@ -77,7 +83,17 @@
                 <joint name="ankle_pitch_l_joint" axis="0 1 0" range="-1.22173 1.0472"
                        actuatorfrcrange="-400 400" armature="0.21448"/>
                 <geom class="visual" mesh="ankle_pitch_l_link"/>
-                <geom name="left_foot_collision" class="foot" mesh="ankle_pitch_l_link"/>
+                <geom name="left_foot2_collision" class="foot" fromto="-0.09 -0.018 -0.055 0.125 -0.018 -0.055"/>
+                <geom name="left_foot3_collision" class="foot" fromto="-0.09 -0.01 -0.065 0.125 -0.01 -0.065"/>
+                <geom name="left_foot4_collision" class="foot" fromto="-0.09 0 -0.065 0.125 0 -0.065"/>
+                <geom name="left_foot5_collision" class="foot" fromto="-0.09 0.01 -0.065 0.125 0.01 -0.065"/>
+                <geom name="left_foot6_collision" class="foot" fromto="-0.09 0.018 -0.055 0.125 0.018 -0.055"/>
+                <geom name="left_foot7_collision" class="foot" fromto="0.125 0.01 -0.06 0.15 0.01 -0.055"/>
+                <geom name="left_foot8_collision" class="foot" fromto="0.125 -0.0 -0.06 0.15 -0.0 -0.055"/>
+                <geom name="left_foot9_collision" class="foot" fromto="0.125 -0.01 -0.06 0.15 -0.01 -0.055"/>
+                <geom name="left_foot10_collision" class="foot" fromto="-0.09 0.01 -0.06 -0.11 0.01 -0.055"/>
+                <geom name="left_foot11_collision" class="foot" fromto="-0.09 -0.0 -0.06 -0.11 -0.0 -0.055"/>
+                <geom name="left_foot12_collision" class="foot" fromto="-0.09 -0.01 -0.06 -0.11 -0.01 -0.055"/>
                 <site name="left_foot" size="0.01" pos="0 0 -0.04"/>
               </body>
             </body>
@@ -118,7 +134,17 @@
                 <joint name="ankle_pitch_r_joint" axis="0 1 0" range="-1.22173 1.0472"
                        actuatorfrcrange="-400 400" armature="0.21448"/>
                 <geom class="visual" mesh="ankle_pitch_r_link"/>
-                <geom name="right_foot_collision" class="foot" mesh="ankle_pitch_r_link"/>
+                <geom name="right_foot2_collision" class="foot" fromto="-0.09 -0.018 -0.055 0.125 -0.018 -0.055"/>
+                <geom name="right_foot3_collision" class="foot" fromto="-0.09 -0.01 -0.065 0.125 -0.01 -0.065"/>
+                <geom name="right_foot4_collision" class="foot" fromto="-0.09 0 -0.065 0.125 0 -0.065"/>
+                <geom name="right_foot5_collision" class="foot" fromto="-0.09 0.01 -0.065 0.125 0.01 -0.065"/>
+                <geom name="right_foot6_collision" class="foot" fromto="-0.09 0.018 -0.055 0.125 0.018 -0.055"/>
+                <geom name="right_foot7_collision" class="foot" fromto="0.125 0.01 -0.06 0.15 0.01 -0.055"/>
+                <geom name="right_foot8_collision" class="foot" fromto="0.125 -0.0 -0.06 0.15 -0.0 -0.055"/>
+                <geom name="right_foot9_collision" class="foot" fromto="0.125 -0.01 -0.06 0.15 -0.01 -0.055"/>
+                <geom name="right_foot10_collision" class="foot" fromto="-0.09 0.01 -0.06 -0.11 0.01 -0.055"/>
+                <geom name="right_foot11_collision" class="foot" fromto="-0.09 -0.0 -0.06 -0.11 -0.0 -0.055"/>
+                <geom name="right_foot12_collision" class="foot" fromto="-0.09 -0.01 -0.06 -0.11 -0.01 -0.055"/>
                 <site name="right_foot" size="0.01" pos="0 0 -0.04"/>
               </body>
             </body>

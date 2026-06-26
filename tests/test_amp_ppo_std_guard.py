@@ -6,9 +6,12 @@ on rough terrain hit this when an extreme physics state produced a NaN gradient.
 ``_clamp_policy_std`` must sanitize the parameter back to a valid range.
 """
 
+from typing import cast
+
 import torch
 
 from mjlab.third_party.amp_rsl_rl.algorithms.multi_amp_ppo import MULTIAMPPPO
+from mjlab.third_party.amp_rsl_rl.modules import ActorCritic
 
 
 class _DummyPolicy:
@@ -29,7 +32,7 @@ def test_clamp_policy_std_recovers_from_nan_and_negative():
     [float("nan"), float("inf"), float("-inf"), -1.0, 0.0] + [0.3] * (num_actions - 5)
   )
   algo = _make_algo(min_std=0.05, num_actions=num_actions)
-  algo.policy = _DummyPolicy(bad)
+  algo.policy = cast(ActorCritic, _DummyPolicy(bad))
 
   algo._clamp_policy_std()
 
@@ -44,7 +47,7 @@ def test_clamp_policy_std_preserves_healthy_values():
   num_actions = 13
   healthy = torch.full((num_actions,), 0.4)
   algo = _make_algo(min_std=0.05, num_actions=num_actions)
-  algo.policy = _DummyPolicy(healthy)
+  algo.policy = cast(ActorCritic, _DummyPolicy(healthy))
 
   algo._clamp_policy_std()
 

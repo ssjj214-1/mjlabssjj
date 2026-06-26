@@ -39,14 +39,14 @@ checkpoints and TensorBoard logs survive container exit.
 V12 job:
 
 ```bash
-MJLAB_TASK=Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V12 \
+MJLAB_TASK=Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V12 \
   scripts/cloud/baidu/train_aihc.sh
 ```
 
 V13 job:
 
 ```bash
-MJLAB_TASK=Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V13 \
+MJLAB_TASK=Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V13 \
   scripts/cloud/baidu/train_aihc.sh
 ```
 

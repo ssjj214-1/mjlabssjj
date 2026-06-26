@@ -171,15 +171,23 @@ ULTRA_HOME_KEYFRAME = EntityCfg.InitialStateCfg(
 ##
 # Collision config.
 #
-# Each collision geom is named `*_collision` (or `left/right_foot_collision`).
-# Foot geoms get condim=3 with elevated priority for stable ground contact.
+# Each collision geom is named `*_collision`. The foot sole is a set of analytic
+# primitives named `left/right_footN_collision`: the base XML uses thin capsules
+# (N=2..12) from the ultra_run_lab source mjcf, while the V10 XML uses heel
+# capsules plus forefoot spheres (N=1..18) aligned to the ankle_roll foot mesh.
+# Both avoid the single foot mesh, which forces mesh-vs-hfield through CCD/EPA
+# and diverges on rough terrain. The `footN` regex matches either scheme, giving
+# them condim=3 with elevated priority for stable ground contact; all other
+# collision geoms stay condim=1.
 ##
+
+_FOOT_GEOM_REGEX = r"^(left|right)_foot\d+_collision$"
 
 ULTRA_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
-  condim={r"^(left|right)_foot_collision$": 3, ".*_collision": 1},
-  priority={r"^(left|right)_foot_collision$": 1},
-  friction={r"^(left|right)_foot_collision$": (0.6,)},
+  condim={_FOOT_GEOM_REGEX: 3, ".*_collision": 1},
+  priority={_FOOT_GEOM_REGEX: 1},
+  friction={_FOOT_GEOM_REGEX: (0.6,)},
 )
 
 

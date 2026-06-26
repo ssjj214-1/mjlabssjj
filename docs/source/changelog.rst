@@ -8,6 +8,13 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Replaced the Ultra GameYaw V13 (V10 XML) single foot-mesh collision with
+  analytic primitives: three heel capsules, a bare arch, and 15 forefoot
+  spheres per foot, all aligned to the ``ankle_roll`` foot mesh boundary
+  (side/front within 0.4 mm, sole height within 0.05 mm via ray-cast). Like
+  the V11/V12 capsule sole, this avoids mesh-vs-heightfield CCD/EPA divergence
+  on rough terrain. Contact sensing already watches the ``ankle_roll`` bodies,
+  so rewards and critic terms stay consistent.
 - Raised the MuJoCo contact/constraint solver capacity for the Ultra GameYaw
   V11/V12/V13 terrain tasks (``ccd_iterations=128``, ``contact_sensor_maxmatch=
   512``, ``njmax=1500``, ``nconmax`` uncapped). The flat-tuned defaults could
@@ -35,6 +42,12 @@ Added
 Changed
 ^^^^^^^
 
+- Renamed the Ultra GameYaw V11/V12/V13 task ids from
+  ``Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V11/V12/V13`` to
+  ``Mjlab-Velocity-Rough-...`` to match the registry convention (``Flat`` ids use
+  a plane, ``Rough`` ids use a terrain generator). These tasks have always used
+  the gravel curriculum terrain; the ``Flat`` prefix was a misnomer. Update any
+  ``--task`` arguments accordingly.
 - Bumped ``rsl-rl-lib`` from 5.2.0 to 5.4.0.
 - Curriculum-mode terrain difficulty is now deterministic across rows
   and reaches the configured ``difficulty_range`` endpoints
@@ -53,6 +66,17 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed the Ultra GameYaw foot collision diverging on rough terrain. The MJCF
+  migration replaced the source robot's multi-capsule sole with a single
+  ``type="mesh"`` foot geom, so foot-vs-heightfield contact ran through CCD/EPA
+  and failed to converge (``EPA horizon ... isn't large enough``), producing
+  non-finite contact forces and NaN in reward/loss on the V11/V12/V13 terrain
+  tasks. The sole is now the original set of thin capsules
+  (``left/right_footN_collision``, N=2..12); all robot collision geoms are
+  primitives again, so contact is analytic and stable. Friction
+  domain-randomization matches the sole capsules by regex (one shared value per
+  foot) and the privileged friction observation reads one representative capsule
+  per foot.
 - Fixed the AMP+HIM trainer crashing with ``normal expects all elements of std
   >= 0.0``. A non-finite gradient (e.g. from an extreme physics state on rough
   terrain) corrupted the scalar policy ``std`` parameter, which the existing

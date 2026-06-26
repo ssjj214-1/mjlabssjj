@@ -1653,7 +1653,7 @@ def foot_clearance_priv(
 def domain_rand_features(
   env: "ManagerBasedRlEnv",
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-  foot_geom_names: tuple[str, ...] = ("left_foot_collision", "right_foot_collision"),
+  foot_geom_names: tuple[str, ...] = ("left_foot2_collision", "right_foot2_collision"),
 ) -> torch.Tensor:
   """Privileged domain-rand features mirroring Ultra's critic input (B, 41).
 

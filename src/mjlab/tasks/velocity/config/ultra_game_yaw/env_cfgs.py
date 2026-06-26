@@ -44,7 +44,16 @@ from . import ultra_mdp
 # Foot site/body/geom names used in several places.
 _FOOT_SITES = ("left_foot", "right_foot")
 _FOOT_BODIES = ("ankle_pitch_l_link", "ankle_pitch_r_link")
-_FOOT_GEOMS = ("left_foot_collision", "right_foot_collision")
+# The sole is a set of thin capsules `left/right_footN_collision` (N=2..12).
+# Foot-ground contact forces are read from the body-level contact sensor (on
+# `ankle_pitch_*_link`), so they are unaffected by the geom count. Only the
+# friction terms reference geom names:
+#   - friction DR randomizes all sole capsules (shared_random gives one value
+#     per foot), matched by regex;
+#   - the privileged friction *observation* needs exactly one value per foot, so
+#     it reads a single representative capsule.
+_FOOT_SOLE_GEOMS = (r"^(left|right)_foot\d+_collision$",)
+_FOOT_FRICTION_REF_GEOMS = ("left_foot2_collision", "right_foot2_collision")
 # Bodies whose contact with the ground should terminate the episode.
 _TERMINATE_CONTACT_BODIES = (
   "base_link",
@@ -196,8 +205,8 @@ def ultra_game_yaw_flat_env_cfg(
   )
 
   # ── Events / Domain Rand ───────────────────────────────────────────
-  # Geom-friction over the foot collision geoms.
-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = _FOOT_GEOMS
+  # Geom-friction over all sole capsules (shared_random -> one value per foot).
+  cfg.events["foot_friction"].params["asset_cfg"].geom_names = _FOOT_SOLE_GEOMS
   # COM offset on base.
   cfg.events["base_com"].params["asset_cfg"].body_names = ("base_link",)
   # Reset_base: keep a small position jitter; ultra MJCF spawns ~1.20m.
@@ -373,7 +382,7 @@ def _make_ultra_aligned_observations() -> dict[str, ObservationGroupCfg]:
     ),
     "domain_rand_features": ObservationTermCfg(
       func=ultra_mdp.domain_rand_features,
-      params={"foot_geom_names": _FOOT_GEOMS},
+      params={"foot_geom_names": _FOOT_FRICTION_REF_GEOMS},
     ),
   }
   return {

@@ -216,7 +216,7 @@ XML / 资产：
 
 ## V11
 
-任务名：`Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V11`
+任务名：`Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V11`
 
 相对 AMP-HIM baseline：
 
@@ -236,7 +236,7 @@ XML / 资产：
 
 ## V12
 
-任务名：`Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V12`
+任务名：`Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V12`
 
 相对 AMP-HIM baseline：
 
@@ -250,7 +250,7 @@ XML / 资产：
 
 ## V13
 
-任务名：`Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V13`
+任务名：`Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V13`
 
 相对 AMP-HIM baseline：
 

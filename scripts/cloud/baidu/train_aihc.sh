@@ -4,8 +4,8 @@ set -euo pipefail
 # Entry point for Baidu AIHC custom training jobs.
 #
 # Set MJLAB_TASK to one of:
-#   Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V12
-#   Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V13
+#   Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V12
+#   Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V13
 
 cd "${MJLAB_WORKDIR:-/app}"
 

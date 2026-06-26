@@ -9,7 +9,11 @@
       <default class="collision">
         <geom group="3" rgba=".2 .6 .2 .3" type="cylinder" contype="1" conaffinity="1" condim="1"/>
         <default class="foot">
-          <geom type="mesh" condim="3" friction="0.6 0.5 0.005" priority="1"/>
+          <!-- Sole approximated by thin capsules instead of the foot mesh.
+               Capsule-vs-heightfield is analytic and stable; the previous
+               ``type="mesh"`` foot forced mesh-vs-hfield through CCD/EPA, which
+               fails to converge on rough terrain and produces NaN contacts. -->
+          <geom type="capsule" size="0.01" condim="3" friction="0.6 0.5 0.005" priority="1"/>
         </default>
       </default>
       <site group="5" rgba="1 0 0 1"/>
@@ -87,7 +91,29 @@
                       <joint name="ankle_roll_l_joint" axis="1 0 0" range="-0.174533 0.174533"
                         stiffness="20" damping="0.5"/>
                   <geom class="visual" mesh="ankle_roll_l_link"/>
-                  <geom name="left_foot_collision" class="foot" mesh="ankle_roll_l_link"/>
+                  <!-- Heel: 3 short capsules on the flat heel pad (z=-0.055). -->
+                  <geom name="left_foot1_collision" class="foot" fromto="-0.088 -0.025 -0.045 -0.022 -0.025 -0.045"/>
+                  <geom name="left_foot2_collision" class="foot" fromto="-0.088 0.000 -0.045 -0.022 0.000 -0.045"/>
+                  <geom name="left_foot3_collision" class="foot" fromto="-0.088 0.025 -0.045 -0.022 0.025 -0.045"/>
+                  <!-- Arch (x~0.0..0.05) intentionally bare: the sole is lifted
+                       there, so no collision -> foot rocks on heel + forefoot. -->
+                  <!-- Forefoot: 15 spheres on the convex-hull sole, rows
+                       widening at the ball and rising along the toe-spring. -->
+                  <geom name="left_foot4_collision" class="foot" type="sphere" size="0.013" pos="0.060 -0.034 -0.0416"/>
+                  <geom name="left_foot5_collision" class="foot" type="sphere" size="0.013" pos="0.060 0.000 -0.0419"/>
+                  <geom name="left_foot6_collision" class="foot" type="sphere" size="0.013" pos="0.060 0.034 -0.0416"/>
+                  <geom name="left_foot7_collision" class="foot" type="sphere" size="0.013" pos="0.082 -0.039 -0.0419"/>
+                  <geom name="left_foot8_collision" class="foot" type="sphere" size="0.013" pos="0.082 0.000 -0.0419"/>
+                  <geom name="left_foot9_collision" class="foot" type="sphere" size="0.013" pos="0.082 0.039 -0.0419"/>
+                  <geom name="left_foot10_collision" class="foot" type="sphere" size="0.013" pos="0.104 -0.039 -0.0411"/>
+                  <geom name="left_foot11_collision" class="foot" type="sphere" size="0.013" pos="0.104 0.000 -0.0411"/>
+                  <geom name="left_foot12_collision" class="foot" type="sphere" size="0.013" pos="0.104 0.039 -0.0411"/>
+                  <geom name="left_foot13_collision" class="foot" type="sphere" size="0.013" pos="0.128 -0.037 -0.0381"/>
+                  <geom name="left_foot14_collision" class="foot" type="sphere" size="0.013" pos="0.128 0.000 -0.0326"/>
+                  <geom name="left_foot15_collision" class="foot" type="sphere" size="0.013" pos="0.128 0.037 -0.0381"/>
+                  <geom name="left_foot16_collision" class="foot" type="sphere" size="0.013" pos="0.152 -0.031 -0.0319"/>
+                  <geom name="left_foot17_collision" class="foot" type="sphere" size="0.013" pos="0.152 0.031 -0.0319"/>
+                  <geom name="left_foot18_collision" class="foot" type="sphere" size="0.013" pos="0.175 0.000 -0.0213"/>
                   <site name="left_foot" size="0.01" pos="0 0 -0.04"/>
                 </body>
               </body>
@@ -137,7 +163,25 @@
                       <joint name="ankle_roll_r_joint" axis="1 0 0" range="-0.174533 0.174533"
                         stiffness="20" damping="0.5"/>
                   <geom class="visual" mesh="ankle_roll_r_link"/>
-                  <geom name="right_foot_collision" class="foot" mesh="ankle_roll_r_link"/>
+                  <!-- Mirror of left (foot symmetric about y=0). -->
+                  <geom name="right_foot1_collision" class="foot" fromto="-0.088 -0.025 -0.045 -0.022 -0.025 -0.045"/>
+                  <geom name="right_foot2_collision" class="foot" fromto="-0.088 0.000 -0.045 -0.022 0.000 -0.045"/>
+                  <geom name="right_foot3_collision" class="foot" fromto="-0.088 0.025 -0.045 -0.022 0.025 -0.045"/>
+                  <geom name="right_foot4_collision" class="foot" type="sphere" size="0.013" pos="0.060 -0.034 -0.0416"/>
+                  <geom name="right_foot5_collision" class="foot" type="sphere" size="0.013" pos="0.060 0.000 -0.0419"/>
+                  <geom name="right_foot6_collision" class="foot" type="sphere" size="0.013" pos="0.060 0.034 -0.0416"/>
+                  <geom name="right_foot7_collision" class="foot" type="sphere" size="0.013" pos="0.082 -0.039 -0.0419"/>
+                  <geom name="right_foot8_collision" class="foot" type="sphere" size="0.013" pos="0.082 0.000 -0.0419"/>
+                  <geom name="right_foot9_collision" class="foot" type="sphere" size="0.013" pos="0.082 0.039 -0.0419"/>
+                  <geom name="right_foot10_collision" class="foot" type="sphere" size="0.013" pos="0.104 -0.039 -0.0411"/>
+                  <geom name="right_foot11_collision" class="foot" type="sphere" size="0.013" pos="0.104 0.000 -0.0411"/>
+                  <geom name="right_foot12_collision" class="foot" type="sphere" size="0.013" pos="0.104 0.039 -0.0411"/>
+                  <geom name="right_foot13_collision" class="foot" type="sphere" size="0.013" pos="0.128 -0.037 -0.0381"/>
+                  <geom name="right_foot14_collision" class="foot" type="sphere" size="0.013" pos="0.128 0.000 -0.0326"/>
+                  <geom name="right_foot15_collision" class="foot" type="sphere" size="0.013" pos="0.128 0.037 -0.0381"/>
+                  <geom name="right_foot16_collision" class="foot" type="sphere" size="0.013" pos="0.152 -0.031 -0.0319"/>
+                  <geom name="right_foot17_collision" class="foot" type="sphere" size="0.013" pos="0.152 0.031 -0.0319"/>
+                  <geom name="right_foot18_collision" class="foot" type="sphere" size="0.013" pos="0.175 0.000 -0.0213"/>
                   <site name="right_foot" size="0.01" pos="0 0 -0.04"/>
                 </body>
               </body>
