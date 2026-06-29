@@ -94,6 +94,23 @@ Fixed
   only steps on a finite loss + gradient (mirroring the PPO guard), and
   ``sinkhorn`` subtracts the max before ``exp`` with epsilon-floored
   denominators so it can't emit Inf/NaN at numerical edges.
+- Fixed the Ultra GameYaw terrain tasks (V9plus/V11/V12/V13) stalling the
+  forward-speed curriculum at 4-6 m/s while the flat tasks ramp to ~14 m/s. The
+  distance-based terrain curriculum (``terrain_levels_vel``) promoted any robot
+  that walked past half a tile (4 m) -- an absolute threshold tuned for ~1 m/s
+  IsaacLab walkers, but trivially cleared every episode by a runner (8 m/s over
+  a 20 s episode covers up to 160 m). Terrain therefore rocketed to max
+  difficulty and the downward servo then pinned the robot at the difficulty
+  where it tracked only ~50% of its command -- mathematically capping sustained
+  speed at half the commanded value, i.e. the observed 4-6 m/s plateau.
+  ``terrain_levels_vel`` now takes ``move_up_distance_frac``: when set, upward
+  promotion requires covering that fraction of the *commanded* distance rather
+  than a fixed 4 m, so terrain only hardens when the robot genuinely keeps up at
+  speed and the two curricula co-advance. The Ultra terrain tasks default it to
+  0.8. The earlier ``min_speed_cap`` gate (freeze terrain until the speed cap
+  reaches a threshold, default 8 m/s) is kept as a secondary early-training
+  guard. A new ``dist_frac`` log reports the mean fraction of commanded distance
+  covered.
 - Fixed the Ultra GameYaw foot collision diverging on rough terrain. The MJCF
   migration replaced the source robot's multi-capsule sole with a single
   ``type="mesh"`` foot geom, so foot-vs-heightfield contact ran through CCD/EPA

@@ -727,21 +727,44 @@ def apply_rough_terrain_sim_params(cfg: ManagerBasedRlEnvCfg) -> None:
   cfg.sim.njmax = 1500  # larger Jacobian/constraint budget for stable solves
 
 
-def add_hist10_terrain_curriculum(cfg: ManagerBasedRlEnvCfg) -> None:
+def add_hist10_terrain_curriculum(
+  cfg: ManagerBasedRlEnvCfg,
+  min_speed_cap: float | None = 8.0,
+  move_up_distance_frac: float | None = 0.8,
+) -> None:
   """Re-enable the distance-based terrain difficulty curriculum (hist10 parity).
 
   The Ultra base cfg pops ``terrain_levels`` because the flat tasks have no
   terrain rows. The V9plus/V11/V12/V13 rough-terrain tasks DO use the gravel
   curriculum grid (``num_rows`` difficulty levels), so restore the term: a robot
-  that walks past half a tile is promoted to a harder row, one that covers less
-  than half its commanded distance is demoted. This is ``mdp.terrain_levels_vel``,
-  whose move-up/move-down logic matches ultra_run_lab hist10's
-  ``update_terrain_levels`` line-for-line. Without it the robots stay pinned to
-  the easiest row (``max_init_terrain_level=0``) and never see harder terrain.
+  that keeps up with its command is promoted to a harder row, one that covers
+  less than half its commanded distance is demoted. This is
+  ``mdp.terrain_levels_vel``.
+
+  ``move_up_distance_frac`` is the real fix for the V12/V13 terrain stall. The
+  vanilla IsaacLab upward gate (``distance > size/2`` = 4 m) is an absolute
+  threshold tuned for ~1 m/s walkers; a runner clears 4 m every episode (8 m/s
+  over 20 s = up to 160 m), so terrain rockets to max difficulty and the
+  downward servo then pins the robot at the difficulty where it tracks only
+  ~50% of its command -- exactly the 4-6 m/s plateau on terrain while flat ramps
+  to ~14. Gating upward promotion on a *fraction of commanded distance* (0.8)
+  means terrain only hardens when the robot genuinely keeps up at speed, so
+  speed and difficulty co-advance. Set to ``None`` for the legacy absolute gate.
+
+  ``min_speed_cap`` is a secondary, early-training guard: it freezes terrain
+  difficulty until the twist ``lin_vel_x`` cap reaches it (m/s), giving the speed
+  curriculum a clean low-difficulty runway before terrain starts climbing. Set
+  to ``None`` to disable. With ``move_up_distance_frac`` set this is largely
+  redundant but harmless.
   """
+  params: dict = {"command_name": "twist"}
+  if min_speed_cap is not None:
+    params["min_speed_cap"] = min_speed_cap
+  if move_up_distance_frac is not None:
+    params["move_up_distance_frac"] = move_up_distance_frac
   cfg.curriculum["terrain_levels"] = CurriculumTermCfg(
     func=mdp.terrain_levels_vel,
-    params={"command_name": "twist"},
+    params=params,
   )
 
 
