@@ -83,6 +83,16 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed "EPA horizon isn't large enough" warning floods (and the garbage contact
+  forces behind them) on the Ultra GameYaw recovery task V9plus. The base/torso
+  and leg collision pads were cylinders, and cylinder-vs-heightfield runs through
+  GJK/EPA, which diverges -- the capsule feet fix only covered the sole, so
+  locomotion was fine, but V9plus resets ~40% of envs into fallen/get-up poses
+  from step 0, lying the cylinder body geoms onto rough tiles. The body pads are
+  now smooth primitives that EPA handles cleanly: ``base``/``waist`` become
+  spheres and the ``hip_pitch``/``knee_pitch`` segments become length-preserving
+  capsules, in both the base and V10 (15-DoF) XMLs. No config references these
+  geom names, so rewards/sensors are unaffected.
 - Fixed the HIM estimator permanently going NaN on the Ultra GameYaw AMP+HIM
   terrain tasks (V11/V12/V13/V14). The estimator runs on its own optimizer whose
   ``update()`` stepped unconditionally, so a single transient non-finite
