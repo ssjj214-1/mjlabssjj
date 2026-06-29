@@ -266,6 +266,26 @@ XML / 资产：
   使用 ankle-roll bodies。
 - 目的：把 passive ankle-roll XML 和 gravel terrain 组合起来，作为 V10 的地形版。
 
+## V14
+
+任务名：`Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V14`
+
+相对 AMP-HIM baseline：
+
+- 与 V12 **完全相同**,仅 experiment / wandb 名不同,作为独立训练槽。
+- 网络 / 算法：继承 V9；actor history 10，critic history 10，critic 输入约 1000 维；
+  HoST smoothness loss 开启。
+- 结构 / 地形：V9 + `GRAVEL_CURRICULUM_TERRAINS_CFG`(ultra_run_lab hist10 真实地形的
+  忠实移植：flat 0.30、random_rough 0.40、上/下缓坡各 0.15，本身不含台阶)。
+  `terrain_levels_vel` 距离课程(= mjlab 自带 = hist10 `update_terrain_levels`,
+  逐行一致)、地形相对 base height、rough-terrain solver 容量均与 V12 一致。
+- 奖励 / 课程 / 命令：完全继承 V9 hist10 reward/curriculum/command sampling。
+- XML / actuator：13 DoF XML，继承 V9/V7 line 的 retuned PD / DR。
+- 备注：reset 位置已天然地形相对——`reset_root_state_uniform` 通过
+  `env_origins`(含地形表面高度)向量相加带入,不存在 AMP_MjLab 那种"只写 z、
+  丢地形高度"的 bug;恢复 reset 路径(仅 V9plus)也已在 V9plus 修过。
+- 目的：作为 V12(= hist10 地形忠实移植)的独立重跑/对照槽。
+
 ## 版本线索速查
 
 | 版本 | 网络 / 算法 | 结构 / 课程 / DR | 奖励 | XML / 资产 |
@@ -286,3 +306,4 @@ XML / 资产：
 | V11 | base AMP-HIM, critic history 1 | gravel + new_him DR/reset parity | yaw weight rebalance | 13 DoF + retuned PD |
 | V12 | V9 network | V9 + gravel | V9 hist10 rewards | 13 DoF + retuned PD |
 | V13 | V10 network | V10 + gravel | V10/V9 rewards | 15 DoF passive ankle-roll |
+| V14 | 同 V12 | 同 V12 (V9 + gravel, 独立训练槽) | V9 hist10 rewards | 13 DoF + retuned PD |

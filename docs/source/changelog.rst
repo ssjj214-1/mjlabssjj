@@ -8,6 +8,10 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added Ultra GameYaw V14 (``Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V14``):
+  identical to V12 (V9 hist10 rewards/curriculum/HIM on the gravel curriculum
+  terrain, the faithful port of ultra_run_lab hist10's terrain), trained as an
+  independent experiment/wandb slot.
 - Restored the distance-based terrain difficulty curriculum on the Ultra GameYaw
   V9plus/V11/V12/V13 terrain tasks (``mdp.terrain_levels_vel`` via
   ``add_hist10_terrain_curriculum``). The Ultra base cfg pops ``terrain_levels``
@@ -79,6 +83,17 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed the HIM estimator permanently going NaN on the Ultra GameYaw AMP+HIM
+  terrain tasks (V11/V12/V13/V14). The estimator runs on its own optimizer whose
+  ``update()`` stepped unconditionally, so a single transient non-finite
+  gradient (from an extreme rough-terrain physics state poisoning a privileged
+  critic obs or the velocity supervision target) corrupted every estimator
+  weight, and the NaN weights then produced NaN forever -- while the PPO
+  optimizer's existing ``isfinite(grad_norm)`` guard kept the actor/critic clean,
+  masking the cause. The estimator now skips the update on non-finite inputs and
+  only steps on a finite loss + gradient (mirroring the PPO guard), and
+  ``sinkhorn`` subtracts the max before ``exp`` with epsilon-floored
+  denominators so it can't emit Inf/NaN at numerical edges.
 - Fixed the Ultra GameYaw foot collision diverging on rough terrain. The MJCF
   migration replaced the source robot's multi-capsule sole with a single
   ``type="mesh"`` foot geom, so foot-vs-heightfield contact ran through CCD/EPA

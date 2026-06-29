@@ -134,6 +134,19 @@ class HIMEstimator(nn.Module):
       for param_group in self.optimizer.param_groups:
         param_group["lr"] = self.learning_rate
 
+    # Skip the update if the inputs are non-finite. On rough terrain a transient
+    # extreme physics state can make a privileged critic obs (or the velocity
+    # supervision target) NaN/Inf. The estimator runs on its own optimizer, so
+    # without this guard a single bad batch steps on a NaN gradient and
+    # permanently poisons every estimator weight (encoder + target + proto) --
+    # the same failure the PPO optimizer already guards against via
+    # ``isfinite(grad_norm)``. Returning early leaves the weights untouched.
+    if not (
+      torch.isfinite(obs_history).all() and torch.isfinite(next_critic_obs).all()
+    ):
+      self.optimizer.zero_grad(set_to_none=True)
+      return 0.0, 0.0
+
     vi = self.vel_index_in_critic
     # Critic stores yaw-frame linear velocity with env obs scaling. Convert back to m/s for supervision.
     vel = next_critic_obs[:, vi : vi + 3].detach()
@@ -170,8 +183,14 @@ class HIMEstimator(nn.Module):
 
     self.optimizer.zero_grad()
     losses.backward()
-    nn.utils.clip_grad_norm_(self.parameters(), self.max_grad_norm)
-    self.optimizer.step()
+    grad_norm = nn.utils.clip_grad_norm_(self.parameters(), self.max_grad_norm)
+    # Only step on a finite loss + gradient. A single non-finite gradient would
+    # otherwise corrupt every estimator weight, and NaN weights then produce NaN
+    # forever (unrecoverable). Mirrors the PPO optimizer's finite-grad guard.
+    if torch.isfinite(losses) and torch.isfinite(grad_norm):
+      self.optimizer.step()
+    else:
+      self.optimizer.zero_grad(set_to_none=True)
 
     return estimation_loss.item(), swap_loss.item()
 
@@ -185,16 +204,20 @@ def sinkhorn(out, eps=0.05, iters=3):
   Returns:
       (B, K) soft assignment, each row sums to 1.
   """
+  # Subtract the max before exp (standard SwAV stabilization) so a large score
+  # can't overflow to +Inf. Denominators are floored with a tiny epsilon so an
+  # underflowed row/col sum can't produce Inf/NaN.
+  out = out - out.max()
   Q = torch.exp(out / eps).T  # (K, B)
   k, b = Q.shape[0], Q.shape[1]
-  Q /= Q.sum()
+  Q /= Q.sum().clamp_min(1e-12)
 
   for _ in range(iters):
     # normalize rows: total weight per prototype must be 1/K
-    Q /= torch.sum(Q, dim=1, keepdim=True)
+    Q /= torch.sum(Q, dim=1, keepdim=True).clamp_min(1e-12)
     Q /= k
     # normalize cols: total weight per sample must be 1/B
-    Q /= torch.sum(Q, dim=0, keepdim=True)
+    Q /= torch.sum(Q, dim=0, keepdim=True).clamp_min(1e-12)
     Q /= b
   return (Q * b).T
 

@@ -63,6 +63,10 @@ from .env_cfgs_v13 import (
   ultra_game_yaw_amp_him_v13_runner_cfg,
   ultra_game_yaw_v13_env_cfg,
 )
+from .env_cfgs_v14 import (
+  ultra_game_yaw_amp_him_v14_runner_cfg,
+  ultra_game_yaw_v14_env_cfg,
+)
 from .rl_cfg import ultra_game_yaw_ppo_runner_cfg
 
 # Phase-1: plain PPO (kept for ablation).
@@ -251,5 +255,18 @@ register_mjlab_task(
   env_cfg=ultra_game_yaw_v13_env_cfg(),
   play_env_cfg=ultra_game_yaw_v13_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v13_runner_cfg(),
+  runner_cls=UltraGameYawAMPHIMRunner,
+)
+
+# v14: identical to v12 (v9 + hist10 gravel curriculum terrain), trained as an
+# independent experiment/wandb slot. The hist10 branch's real terrain is the
+# gravel curriculum (no stairs), so V14 reuses GRAVEL_CURRICULUM_TERRAINS_CFG
+# verbatim with the same terrain-relative base height, rough-terrain solver
+# capacity, and distance-gated terrain_levels_vel curriculum.
+register_mjlab_task(
+  task_id="Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V14",
+  env_cfg=ultra_game_yaw_v14_env_cfg(),
+  play_env_cfg=ultra_game_yaw_v14_env_cfg(play=True),
+  rl_cfg=ultra_game_yaw_amp_him_v14_runner_cfg(),
   runner_cls=UltraGameYawAMPHIMRunner,
 )
