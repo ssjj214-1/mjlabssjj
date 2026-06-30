@@ -672,7 +672,32 @@ def ultra_game_yaw_aligned_env_cfg(
     params={"command_name": "twist"},
   )
 
+  # Clip every observation to +/-100, matching the Isaac reference.
+  clip_observations(cfg)
+
   return cfg
+
+
+def clip_observations(cfg: ManagerBasedRlEnvCfg, limit: float = 100.0) -> None:
+  """Clip every observation term to ``[-limit, limit]`` (Isaac parity).
+
+  ``ultra_run_lab`` clips both actor and critic observations to +/-100 every
+  step (``ultra_motion_run_env.py``: ``torch.clip(actor_obs/critic_obs, -100,
+  100)``). mjlab applies no observation clipping by default, and several
+  privileged critic terms are unbounded -- raw foot contact force
+  (``foot_force_z``), yaw-frame base linear velocity (``base_lin_vel``), joint
+  velocity. On a high-speed contact one of these spikes to a huge/non-finite
+  value, which poisons the critic obs (the HIM estimator's finite-input guard
+  then fires, so estimation/swap loss read 0), drives the policy output and the
+  action-magnitude reward penalties to ~1e31, and NaNs the value/symmetry loss.
+  Bounding the obs to +/-100 at the network interface -- exactly as Isaac does
+  -- breaks that cascade at the source. Terms that already set a (tighter) clip
+  are left untouched.
+  """
+  for group in cfg.observations.values():
+    for term in group.terms.values():
+      if term.clip is None:
+        term.clip = (-limit, limit)
 
 
 def add_terrain_relative_base_height(
@@ -709,6 +734,10 @@ def add_terrain_relative_base_height(
     func=ultra_mdp.base_height_priv,
     params={"sensor_name": base_scan.name, "target_height": target_height},
   )
+
+  # Re-clip so any critic term added since the aligned env (this one, plus the
+  # V10/V13 passive ankle-roll terms added before this call) is bounded too.
+  clip_observations(cfg)
 
 
 def apply_rough_terrain_sim_params(cfg: ManagerBasedRlEnvCfg) -> None:

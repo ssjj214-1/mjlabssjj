@@ -315,6 +315,7 @@ class MULTIAMPPPO:
 
   def update(self):  # noqa: C901
     mean_value_loss = 0
+    num_skipped_minibatches = 0
     mean_surrogate_loss = 0
     mean_entropy = 0
     mean_amp_loss = 0
@@ -706,6 +707,19 @@ class MULTIAMPPPO:
       # Compute the gradients
       # -- For PPO
       self.optimizer.zero_grad()
+      # Minibatch-level non-finite guard (Isaac AMP-PPO parity). If the
+      # assembled loss is non-finite -- e.g. a transient extreme physics state
+      # produced a huge return -> Inf value loss -- skip this minibatch's
+      # backward, optimizer step, and loss logging entirely, instead of letting
+      # one bad minibatch poison the gradient and report NaN losses. All AMP
+      # generators are already consumed above, so `continue` here is safe. The
+      # +/-100 obs/action clipping should prevent this upstream; this is the
+      # last-line guard so a single blip can't kill the whole run.
+      if not torch.isfinite(loss):
+        num_skipped_minibatches += 1
+        self.optimizer.zero_grad(set_to_none=True)
+        self._clamp_policy_std()
+        continue
       loss.backward()
       # -- For RND
       if self.rnd:
@@ -718,9 +732,7 @@ class MULTIAMPPPO:
 
       # Apply the gradients
       # -- For PPO
-      grad_norm = nn.utils.clip_grad_norm_(
-        self.policy.parameters(), self.max_grad_norm
-      )
+      grad_norm = nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
       # A single non-finite gradient (NaN/Inf, e.g. from an extreme physics
       # state on rough terrain) would otherwise permanently corrupt the policy
       # parameters -- including the std parameter, which then makes
@@ -795,6 +807,7 @@ class MULTIAMPPPO:
     # construct the loss dictionary
     loss_dict = {
       "value_function": mean_value_loss,
+      "skipped_minibatches": float(num_skipped_minibatches),
       "surrogate": mean_surrogate_loss,
       "entropy": mean_entropy,
       "amp": mean_amp_loss,

@@ -83,6 +83,23 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed the Ultra GameYaw AMP+HIM training diverging to NaN once the speed
+  curriculum reaches high commanded velocities on terrain. The Isaac reference
+  (ultra_run_lab) clips both observations and actions to +/-100 every step, but
+  the mjlab port had dropped both, so an unbounded privileged critic term (raw
+  foot contact force ``foot_force_z``, yaw-frame ``base_lin_vel``, joint
+  velocity) could spike on a high-speed contact, poison the critic obs (the HIM
+  estimator's finite-input guard then reports estimation/swap loss 0), blow the
+  policy output and the unclipped action-magnitude reward penalties up to ~1e31,
+  and NaN the value/symmetry loss. Restored Isaac parity: every observation term
+  is clipped to +/-100 (``clip_observations``, applied in the aligned env and
+  the terrain-height helper) and ``clip_actions=100.0`` on the AMP+HIM runner.
+  Covers V9/V11/V12/V13/V9plus.
+- Added a minibatch-level non-finite guard to the multi-AMP PPO update
+  (``multi_amp_ppo``): if the assembled loss is non-finite, that minibatch's
+  backward, optimizer step, and loss logging are skipped (mirroring the Isaac
+  AMP-PPO guard) instead of one bad minibatch poisoning the gradient and
+  reporting NaN losses. A ``skipped_minibatches`` count is logged.
 - Fixed "EPA horizon isn't large enough" warning floods (and the garbage contact
   forces behind them) on the Ultra GameYaw recovery task V9plus. The base/torso
   and leg collision pads were cylinders, and cylinder-vs-heightfield runs through

@@ -553,6 +553,12 @@ def ultra_game_yaw_amp_him_runner_cfg() -> RslRlAmpHimRunnerCfg:
     logger="wandb",
     wandb_project="ultra_game_yaw_amp_him",
     obs_groups={"actor": ("actor",), "critic": ("critic",)},
+    # Clip actions to +/-100 like the Isaac reference (ultra_run_lab clips both
+    # obs and actions to +/-100). Normal actions are ~+/-3, so this only ever
+    # bites a runaway: it caps the action-magnitude reward penalties so a single
+    # high-speed contact spike can't blow the reward up to ~1e31 and NaN the
+    # value loss. Read by RslRlVecEnvWrapper at the env boundary.
+    clip_actions=100.0,
   )
 
 
