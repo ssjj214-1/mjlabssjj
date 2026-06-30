@@ -9,6 +9,33 @@
 对称镜像损失、原始 Ultra XML/PD、step 速度课程、aligned reward set 的
 baseline。纯 PPO 任务单独列为消融，不作为 V2-V13 的比较基准。
 
+## 通用稳定性修复(框架层，影响所有 AMP+HIM 版本)
+
+以下修复不属于某个版本，而是修在共享的 XML / 框架 / 算法里，所有 AMP+HIM
+版本(baseline、V9–V16、V9plus)一并生效。它们解决的是"加地形 / 上高速后
+训练发散到 NaN"的共性问题——根因都是**移植时丢掉了 Isaac 端的边界保护**，
+不是物理本身(同机器人同 15 m/s 在 IsaacSim/ultra_run_lab 能稳定训练)。
+
+1. **obs / action ±100 钳位(Isaac parity，治本)**：ultra_run_lab 每步把
+   actor/critic obs 和 action 都 `clip(±100)`，mjlab 移植时两者都丢了。
+   mjlab 的 critic obs 含无界项(裸接触力 `foot_force_z`、yaw 系
+   `base_lin_vel`、`joint_vel`)，高速接触一爆 → 污染 critic obs(HIM 护栏
+   触发，日志 `estimation/swap loss = 0`)→ 策略输出爆 → 未封顶的动作惩罚
+   (`hip_yaw_action`/`action_rate_l2`)爆成 ~1e31 → `value/symmetry loss` NaN
+   → 死锁。修复：`clip_observations()` 给所有 obs 项设 `clip=(-100,100)`
+   (在 aligned env 和 `add_terrain_relative_base_height` 各调一次)，AMP+HIM
+   runner 设 `clip_actions=100.0`。这是 V11/V12/V13 高速 NaN 的根因修复。
+2. **PPO minibatch 级非有限跳过(纵深防御)**：`multi_amp_ppo` 在 loss 非有限
+   时跳过该 minibatch 的 backward / step / 记账(对齐 Isaac AMP-PPO),并记录
+   `skipped_minibatches`，避免单个坏 minibatch 毒化梯度或把日志刷成 NaN。
+3. **HIM estimator 非有限护栏 + sinkhorn 稳定**：estimator 独立优化器在输入
+   非有限或 loss/梯度非有限时跳过 step(否则一次坏 batch 就把 encoder/target/
+   proto 永久写成 NaN)；`sinkhorn` 减最大值 + 分母兜底，杜绝 Inf/NaN。
+4. **碰撞体全部改为 EPA 友好的光滑体**：脚=胶囊，`base`/`waist`=球，
+   `hip_pitch`/`knee_pitch`=保长胶囊(base 与 V10 两个 XML)。圆柱-vs-heightfield
+   走 GJK/EPA，扁盘压斜面会退化触发 "EPA horizon isn't large enough" + 垃圾
+   接触力,主要在摔倒/恢复(V9plus)时出现;改光滑体后实测躺地 EPA 39 → 0。
+
 ## Baseline: AMP-HIM
 
 任务名：`Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM`
