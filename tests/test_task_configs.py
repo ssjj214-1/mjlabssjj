@@ -16,6 +16,7 @@ from mjlab.tasks.velocity.config.ultra_game_yaw.amp_him import (
   _select_amp_foot_bodies,
 )
 from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v9 import (
+  ultra_game_yaw_amp_him_v9_runner_cfg,
   ultra_game_yaw_v9_env_cfg,
 )
 from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v9plus import (
@@ -27,6 +28,14 @@ from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v10 import (
 )
 from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v11 import (
   ultra_game_yaw_v11_env_cfg,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v15 import (
+  ultra_game_yaw_amp_him_v15_runner_cfg,
+  ultra_game_yaw_v15_env_cfg,
+)
+from mjlab.tasks.velocity.config.ultra_game_yaw.env_cfgs_v16 import (
+  ultra_game_yaw_amp_him_v16_runner_cfg,
+  ultra_game_yaw_v16_env_cfg,
 )
 from mjlab.tasks.velocity.config.ultra_game_yaw.recovery_mdp import (
   DelayedTerminationManager,
@@ -247,6 +256,38 @@ def test_ultra_v11_pseudo_inertia_uses_log_alpha_for_mass_scale() -> None:
   assert event.params["alpha_range"] == pytest.approx(
     (0.5 * math.log(0.8), 0.5 * math.log(1.2))
   )
+
+
+def test_ultra_v15_is_v9_flat_with_14mps_motion_removed() -> None:
+  """V15 should only remove the 14 m/s run AMP clip from V9."""
+  v9_cfg = ultra_game_yaw_v9_env_cfg()
+  v15_cfg = ultra_game_yaw_v15_env_cfg()
+
+  assert v15_cfg.scene.terrain is not None
+  assert v15_cfg.scene.terrain.terrain_type == "plane"
+  assert v15_cfg.rewards.keys() == v9_cfg.rewards.keys()
+  assert "terrain_levels_vel" not in v15_cfg.curriculum
+
+  runner_cfg = ultra_game_yaw_amp_him_v15_runner_cfg()
+  style_2_names = [
+    Path(path).name for path in runner_cfg.amp_motion_files_dict["style_2"]
+  ]
+  assert style_2_names == ["run_17200_9mps.txt"]
+
+
+def test_ultra_v16_is_v9_flat_with_feet_height_symmetry_reward_only() -> None:
+  """V16 should keep V9 motions and add the foot-height symmetry reward."""
+  v9_cfg = ultra_game_yaw_v9_env_cfg()
+  v16_cfg = ultra_game_yaw_v16_env_cfg()
+
+  assert v16_cfg.scene.terrain is not None
+  assert v16_cfg.scene.terrain.terrain_type == "plane"
+  assert "terrain_levels_vel" not in v16_cfg.curriculum
+  assert set(v16_cfg.rewards) == set(v9_cfg.rewards) | {"feet_swing_height_symmetry"}
+
+  runner_cfg = ultra_game_yaw_amp_him_v16_runner_cfg()
+  v9_runner_cfg = ultra_game_yaw_amp_him_v9_runner_cfg()
+  assert runner_cfg.amp_motion_files_dict == v9_runner_cfg.amp_motion_files_dict
 
 
 def test_ultra_amp_foot_proxy_stays_on_ankle_pitch() -> None:

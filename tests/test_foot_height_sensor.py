@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 import torch
 from conftest import get_test_device, make_scene_and_sim
 
+from mjlab.envs import ManagerBasedRlEnv
 from mjlab.sensor import ObjRef, RingPatternCfg, TerrainHeightSensorCfg
 from mjlab.sensor.terrain_height_sensor import TerrainHeightSensor
 
@@ -72,6 +75,16 @@ class _FakeEnv:
     self.scene = scene
 
 
+class _FakeContactSensor:
+  def __init__(self, found, first_contact):
+    self.data = type("Data", (), {"found": found})()
+    self._first_contact = first_contact
+
+  def compute_first_contact(self, dt):
+    del dt
+    return self._first_contact
+
+
 def test_foot_height_flat_platform(device):
   """Two feet at different heights above a flat platform."""
   cfg = _foot_sensor_cfg()
@@ -121,6 +134,72 @@ def test_foot_height_observation(device):
   direct = sensor.data.heights
 
   assert torch.allclose(obs, direct)
+
+
+def test_feet_swing_height_symmetry_penalizes_uneven_recent_peaks() -> None:
+  """Foot-height symmetry cost compares the latest left/right swing peaks."""
+  from mjlab.managers.reward_manager import RewardTermCfg
+  from mjlab.sensor.terrain_height_sensor import TerrainHeightSensor
+  from mjlab.tasks.velocity.config.ultra_game_yaw import ultra_mdp
+
+  height_sensor = TerrainHeightSensor.__new__(TerrainHeightSensor)
+  height_sensor._num_frames = 2
+  height_sensor._cache_valid = True
+  height_sensor._cached_data = type(
+    "Data",
+    (),
+    {"heights": torch.tensor([[0.30, 0.10], [0.20, 0.20]])},
+  )()
+  contact_sensor = _FakeContactSensor(
+    found=torch.tensor([[1, 1], [1, 1]]),
+    first_contact=torch.tensor([[True, True], [True, True]]),
+  )
+  env = type(
+    "Env",
+    (),
+    {
+      "num_envs": 2,
+      "device": "cpu",
+      "step_dt": 0.01,
+      "scene": {
+        "foot_height_scan": height_sensor,
+        "feet_ground_contact": contact_sensor,
+      },
+      "extras": {"log": {}},
+      "style_ids": torch.tensor([2, 2]),
+    },
+  )()
+  typed_env = cast(ManagerBasedRlEnv, env)
+  reward = ultra_mdp.feet_swing_height_symmetry(
+    RewardTermCfg(
+      func=ultra_mdp.feet_swing_height_symmetry,
+      weight=-1.0,
+      params={"height_sensor_name": "foot_height_scan"},
+    ),
+    typed_env,
+  )
+
+  contact_sensor.data.found = torch.tensor([[0, 0], [0, 0]])
+  contact_sensor._first_contact = torch.tensor([[False, False], [False, False]])
+  assert reward(
+    typed_env,
+    sensor_name="feet_ground_contact",
+    height_sensor_name="foot_height_scan",
+    target_height=0.20,
+    style_mask=[2],
+  ).tolist() == pytest.approx([0.0, 0.0])
+
+  contact_sensor.data.found = torch.tensor([[1, 1], [1, 1]])
+  contact_sensor._first_contact = torch.tensor([[True, True], [True, True]])
+  cost = reward(
+    typed_env,
+    sensor_name="feet_ground_contact",
+    height_sensor_name="foot_height_scan",
+    target_height=0.20,
+    style_mask=[2],
+  )
+
+  assert cost.tolist() == pytest.approx([1.0, 0.0])
 
 
 def test_foot_height_multi_env(device):

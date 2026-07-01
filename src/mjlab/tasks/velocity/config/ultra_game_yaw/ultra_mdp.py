@@ -34,8 +34,10 @@ from typing import TYPE_CHECKING, cast
 import torch
 
 from mjlab.entity import Entity
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactSensor
+from mjlab.sensor.terrain_height_sensor import TerrainHeightSensor
 from mjlab.tasks.velocity.mdp.velocity_command import UniformVelocityCommandCfg
 from mjlab.utils.lab_api.math import (
   quat_apply_inverse,
@@ -1509,6 +1511,83 @@ def feet_stumble(
   vert = forces[..., 2].abs() + 1e-6
   stumble = (lat > ratio * vert).float().sum(dim=1)
   return stumble * _style_mask(env, style_mask)
+
+
+class feet_swing_height_symmetry:
+  """Penalize mismatched left/right swing peak heights.
+
+  The term tracks the maximum terrain-relative foot height during each swing and
+  compares the latest completed left and right peaks. It is intentionally based
+  on completed swings rather than instantaneous height so normal alternating
+  gait is not penalized just because only one foot is airborne.
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: "ManagerBasedRlEnv"):
+    height_sensor = env.scene[cfg.params["height_sensor_name"]]
+    assert isinstance(height_sensor, TerrainHeightSensor), (
+      "feet_swing_height_symmetry requires a TerrainHeightSensor, got "
+      f"{type(height_sensor).__name__}"
+    )
+    num_feet = height_sensor.num_frames
+    self.peak_heights = torch.zeros(
+      (env.num_envs, num_feet), device=env.device, dtype=torch.float32
+    )
+    self.last_completed_peaks = torch.zeros_like(self.peak_heights)
+    self.has_completed_peak = torch.zeros(
+      (env.num_envs, num_feet), device=env.device, dtype=torch.bool
+    )
+    self.step_dt = env.step_dt
+
+  def __call__(
+    self,
+    env: "ManagerBasedRlEnv",
+    sensor_name: str,
+    height_sensor_name: str,
+    target_height: float = 0.1,
+    style_mask: list[int] | None = None,
+  ) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene[sensor_name]
+    height_sensor = env.scene[height_sensor_name]
+    assert isinstance(height_sensor, TerrainHeightSensor), (
+      "feet_swing_height_symmetry requires a TerrainHeightSensor, got "
+      f"{type(height_sensor).__name__}"
+    )
+    assert contact_sensor.data.found is not None
+
+    foot_heights = height_sensor.data.heights
+    in_air = contact_sensor.data.found == 0
+    self.peak_heights = torch.where(
+      in_air,
+      torch.maximum(self.peak_heights, foot_heights),
+      self.peak_heights,
+    )
+
+    first_contact = contact_sensor.compute_first_contact(dt=self.step_dt).bool()
+    self.last_completed_peaks = torch.where(
+      first_contact, self.peak_heights, self.last_completed_peaks
+    )
+    self.has_completed_peak = self.has_completed_peak | first_contact
+
+    both_feet_seen = self.has_completed_peak.all(dim=1)
+    denom = max(float(target_height), 1e-6)
+    error = (self.last_completed_peaks[:, 0] - self.last_completed_peaks[:, 1]) / denom
+    cost = error.square() * both_feet_seen.float()
+
+    env.extras["log"]["Metrics/feet_swing_height_symmetry_error"] = (
+      error.abs() * both_feet_seen.float()
+    ).mean()
+
+    self.peak_heights = torch.where(
+      first_contact,
+      torch.zeros_like(self.peak_heights),
+      self.peak_heights,
+    )
+    return cost * _style_mask(env, style_mask)
+
+  def reset(self, env_ids: torch.Tensor) -> None:
+    self.peak_heights[env_ids] = 0.0
+    self.last_completed_peaks[env_ids] = 0.0
+    self.has_completed_peak[env_ids] = False
 
 
 def gait_feet_force_max_neg(

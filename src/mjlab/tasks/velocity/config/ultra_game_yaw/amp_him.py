@@ -122,6 +122,7 @@ class UltraAMPHIMVecEnvWrapper:
     style_thresholds: dict[str, float],
     critic_history_length: int = 1,
     obs_lin_vel_scale: float = 1.0,
+    use_him: bool = True,
   ) -> None:
     self._base = base_env
     self.unwrapped: ManagerBasedRlEnv = base_env.unwrapped
@@ -168,6 +169,18 @@ class UltraAMPHIMVecEnvWrapper:
       device=self.device,
       dtype=torch.float32,
     )
+
+    # HIM toggle. The history buffers above (and the stacked actor/critic
+    # observations returned to the runner) are unchanged either way; disabling
+    # HIM only hides ``num_one_step_obs`` / ``num_one_step_critic_obs`` from
+    # MultiAmpOnPolicyRunner. With them ``None`` the runner builds a plain MLP
+    # actor over the full stacked observation (hist10-style, no GRU estimator)
+    # and skips all estimator supervision. Default True keeps every other
+    # version (V2-V16) identical.
+    self.use_him = bool(use_him)
+    if not self.use_him:
+      self.num_one_step_obs = None
+      self.num_one_step_critic_obs = None
 
     # Style ids are owned by the underlying env (set by the
     # ``ultra_style_update`` step event so reward functions can read them).
@@ -399,6 +412,7 @@ class UltraGameYawAMPHIMRunner(MultiAmpOnPolicyRunner):
       },
     )
     num_styles = int(train_cfg.pop("num_styles", 3))
+    use_him = bool(train_cfg.pop("use_him", True))
     train_cfg.pop("clip_actions", None)
     train_cfg.pop("upload_model", None)
     train_cfg.pop("wandb_tags", None)
@@ -414,6 +428,7 @@ class UltraGameYawAMPHIMRunner(MultiAmpOnPolicyRunner):
       critic_history_length=critic_history_length,
       num_styles=num_styles,
       style_thresholds=style_cfg,
+      use_him=use_him,
     )
 
     super().__init__(amp_env, train_cfg, log_dir, device)
@@ -511,6 +526,10 @@ class RslRlAmpHimRunnerCfg(RslRlBaseRunnerCfg):
   """
 
   empirical_normalization: bool = False
+  use_him: bool = True
+  """When False, the actor is a plain MLP over the full stacked observation and
+  the HIM GRU velocity estimator is dropped entirely (no estimator net, no
+  estimator supervision). V17 uses this; all other versions keep True."""
   use_wgan_discriminator: bool = True
   amp_motion_files_dict: dict[str, list[str]] = field(
     default_factory=_default_amp_motion_files_dict

@@ -67,6 +67,18 @@ from .env_cfgs_v14 import (
   ultra_game_yaw_amp_him_v14_runner_cfg,
   ultra_game_yaw_v14_env_cfg,
 )
+from .env_cfgs_v15 import (
+  ultra_game_yaw_amp_him_v15_runner_cfg,
+  ultra_game_yaw_v15_env_cfg,
+)
+from .env_cfgs_v16 import (
+  ultra_game_yaw_amp_him_v16_runner_cfg,
+  ultra_game_yaw_v16_env_cfg,
+)
+from .env_cfgs_v17 import (
+  ultra_game_yaw_amp_him_v17_runner_cfg,
+  ultra_game_yaw_v17_env_cfg,
+)
 from .rl_cfg import ultra_game_yaw_ppo_runner_cfg
 
 # Phase-1: plain PPO (kept for ablation).
@@ -268,5 +280,37 @@ register_mjlab_task(
   env_cfg=ultra_game_yaw_v14_env_cfg(),
   play_env_cfg=ultra_game_yaw_v14_env_cfg(play=True),
   rl_cfg=ultra_game_yaw_amp_him_v14_runner_cfg(),
+  runner_cls=UltraGameYawAMPHIMRunner,
+)
+
+# v15: V9 flat training with the 14 m/s run AMP clip removed. Used to isolate
+# whether the high-speed motion segment is harming the V9 flat policy.
+register_mjlab_task(
+  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V15",
+  env_cfg=ultra_game_yaw_v15_env_cfg(),
+  play_env_cfg=ultra_game_yaw_v15_env_cfg(play=True),
+  rl_cfg=ultra_game_yaw_amp_him_v15_runner_cfg(),
+  runner_cls=UltraGameYawAMPHIMRunner,
+)
+
+# v16: V9 flat training with an extra left/right swing-height symmetry reward.
+# It is independent from V15 and keeps V9's original AMP motion set.
+register_mjlab_task(
+  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V16",
+  env_cfg=ultra_game_yaw_v16_env_cfg(),
+  play_env_cfg=ultra_game_yaw_v16_env_cfg(play=True),
+  rl_cfg=ultra_game_yaw_amp_him_v16_runner_cfg(),
+  runner_cls=UltraGameYawAMPHIMRunner,
+)
+
+# v17: V9 (hist10 rewards + curriculum + AMP) on the flat plane with the HIM GRU
+# velocity estimator removed (use_him=False). The actor becomes a plain MLP over
+# the full 10-frame stacked observation (hist10-style, no estimator). Isolates
+# whether HIM is the source of the real-robot left/right gait asymmetry.
+register_mjlab_task(
+  task_id="Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V17",
+  env_cfg=ultra_game_yaw_v17_env_cfg(),
+  play_env_cfg=ultra_game_yaw_v17_env_cfg(play=True),
+  rl_cfg=ultra_game_yaw_amp_him_v17_runner_cfg(),
   runner_cls=UltraGameYawAMPHIMRunner,
 )

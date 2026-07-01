@@ -8,6 +8,19 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added Ultra GameYaw V17 flat training task
+  (``Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V17``): identical to V9
+  (hist10 rewards/curriculum + AMP on the flat plane) but with the HIM GRU
+  velocity estimator removed via a new ``use_him`` runner flag. The actor
+  becomes a plain MLP over the full 10-frame stacked observation
+  (hist10-style, no estimator). Isolates whether HIM is the source of the
+  real-robot left/right gait asymmetry.
+- Added Ultra GameYaw V15 and V16 flat training tasks
+  (``Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V15`` and
+  ``Mjlab-Velocity-Flat-Ultra-GameYaw-AMP-HIM-V16``). V15 inherits V9 and removes
+  the 14 m/s run AMP clip; V16 independently inherits V9 and adds a
+  left/right swing-height symmetry reward while keeping V9's original AMP
+  motion set.
 - Added Ultra GameYaw V14 (``Mjlab-Velocity-Rough-Ultra-GameYaw-AMP-HIM-V14``):
   identical to V12 (V9 hist10 rewards/curriculum/HIM on the gravel curriculum
   terrain, the faithful port of ultra_run_lab hist10's terrain), trained as an
